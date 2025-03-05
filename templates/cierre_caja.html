@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">Cierre de Caja - {{ fecha }}</h1>
+    
+    <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+            <h4><i class="fas fa-chart-bar"></i> Resumen General</h4>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="alert alert-success">
+                        <h5>Total Cancelado</h5>
+                        <h3>${{ "%.2f"|format(resumen_general.total_cancelado) }}</h3>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="alert alert-warning">
+                        <h5>Total Pendiente</h5>
+                        <h3>${{ "%.2f"|format(resumen_general.total_pendiente) }}</h3>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="alert alert-primary">
+                        <h5>Total General</h5>
+                        <h3>${{ "%.2f"|format(resumen_general.total_general) }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h3 class="mb-3"><i class="fas fa-users"></i> Resumen por Cliente</h3>
+    <table class="table table-bordered">
+        <thead class="thead-light">
+            <tr>
+                <th>Cédula</th>
+                <th>Total Consumo</th>
+                <th>Estado</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cliente in resumen_clientes %}
+            <tr class="{{ 'table-success' if cliente.estado == 'CANCELADO' else 'table-warning' }}">
+                <td>{{ cliente.cedula }}</td>
+                <td>${{ "%.2f"|format(cliente.total) }}</td>
+                <td>{{ cliente.estado }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="text-center mt-4">
+        <button onclick="window.print()" class="btn btn-primary">
+            <i class="fas fa-print"></i> Imprimir Reporte
+        </button>
+        <a href="/caja/login" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Volver
+        </a>
+    </div>
+</div>
+{% endblock %}

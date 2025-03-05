@@ -1,0 +1,19 @@
+body {
+    background: url('../img/background.jpg') no-repeat center center fixed;
+    background-size: cover;
+}
+
+.login-container {
+    background: rgba(255, 255, 255, 0.9);
+    width: 350px;
+    text-align: center;
+}
+.modal-entradas .form-control {
+    padding: 0.75rem;
+    font-size: 1.1rem;
+}
+
+.modal-entradas label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}

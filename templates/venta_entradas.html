@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4"><i class="fas fa-ticket-alt me-2"></i>Venta de Entradas</h2>
+    
+    <form method="POST" class="card p-4 shadow">
+        <!-- Selector de fecha -->
+        <div class="mb-4">
+            <label class="form-label h5">Fecha de la visita:</label>
+            <input type="date" class="form-control form-control-lg" 
+                   name="fecha" required>
+        </div>
+
+        <!-- Selector de cantidades -->
+        <div class="mb-4">
+            <h5 class="mb-3">Seleccione la cantidad de entradas:</h5>
+            
+            <!-- Adultos -->
+            <div class="row align-items-center mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Adultos (15+ años)</label>
+                    <small class="text-muted d-block">$6 por entrada</small>
+                </div>
+                <div class="col-md-6">
+                    <input type="number" class="form-control" 
+                           name="adultos" min="0" value="0">
+                </div>
+            </div>
+
+            <!-- Niños -->
+            <div class="row align-items-center mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Niños (2-14 años)</label>
+                    <small class="text-muted d-block">$4 por entrada</small>
+                </div>
+                <div class="col-md-6">
+                    <input type="number" class="form-control" 
+                           name="ninos" min="0" value="0">
+                </div>
+            </div>
+
+            <!-- Tercera Edad -->
+            <div class="row align-items-center mb-4">
+                <div class="col-md-6">
+                    <label class="form-label">Tercera Edad (65+ años)</label>
+                    <small class="text-muted d-block">$4 por entrada</small>
+                </div>
+                <div class="col-md-6">
+                    <input type="number" class="form-control" 
+                           name="tercera_edad" min="0" value="0">
+                </div>
+            </div>
+
+            <!-- Total -->
+            <div class="alert alert-info h4">
+                Total: $<span id="total">0.00</span>
+            </div>
+        </div>
+
+        <!-- Botones -->
+        <div class="d-flex justify-content-between mt-4">
+            <a href="{{ url_for('login') }}" class="btn btn-secondary btn-lg">
+                <i class="fas fa-arrow-left me-2"></i>Volver
+            </a>
+            <button type="submit" class="btn btn-primary btn-lg">
+                <i class="fas fa-check-circle me-2"></i>Confirmar Compra
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Script para cálculo automático -->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const precios = {
+        adultos: 6,
+        ninos: 4,
+        tercera_edad: 4
+    };
+
+    function calcularTotal() {
+        let total = 0;
+        for(const tipo in precios) {
+            const cantidad = parseInt(document.getElementsByName(tipo)[0].value) || 0;
+            total += cantidad * precios[tipo];
+        }
+        document.getElementById('total').textContent = total.toFixed(2);
+    }
+
+    // Event listeners para los inputs
+    document.querySelectorAll('input[type="number"]').forEach(input => {
+        input.addEventListener('input', calcularTotal);
+    });
+
+    // Calcular inicialmente
+    calcularTotal();
+});
+</script>
+{% endblock %}

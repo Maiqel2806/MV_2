@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gestión de Productos</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>Gestión de Productos</h2>
+        <button class="btn btn-success mb-3" data-toggle="modal" data-target="#productoModal">
+            + Nuevo Producto
+        </button>
+
+        <!-- Tabla de Productos -->
+        <table class="table table-bordered">
+            <thead class="thead-dark">
+                <tr>
+                    <th>#</th>
+                    <th>Producto</th>
+                    <th>Precio</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for idx, producto in enumerate(productos) %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ producto.Producto }}</td>
+                    <td>${{ "%.2f"|format(producto.Precio) }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning" 
+                                data-toggle="modal" 
+                                data-target="#productoModal"
+                                data-indice="{{ idx }}"
+                                data-producto="{{ producto.Producto }}"
+                                data-precio="{{ producto.Precio }}">
+                            Editar
+                        </button>
+                        <form method="POST" style="display: inline;">
+                            <input type="hidden" name="indice" value="{{ idx }}">
+                            <button type="submit" 
+                                    class="btn btn-sm btn-danger" 
+                                    name="eliminar"
+                                    onclick="return confirm('¿Eliminar este producto?')">
+                                Eliminar
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <a href="/admin/panel" class="btn btn-secondary">Volver</a>
+    </div>
+
+    <!-- Modal para Editar/Crear -->
+    <div class="modal fade" id="productoModal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Gestión de Producto</h5>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <form method="POST">
+                    <div class="modal-body">
+                        <input type="hidden" name="indice" id="modalIndice">
+                        <div class="form-group">
+                            <label>Nombre del Producto</label>
+                            <input type="text" class="form-control" name="producto" id="modalProducto" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Precio</label>
+                            <input type="number" class="form-control" name="precio" id="modalPrecio" step="0.01" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" name="guardar">Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $('#productoModal').on('show.bs.modal', function (event) {
+            var button = $(event.relatedTarget);
+            var indice = button.data('indice');
+            var producto = button.data('producto');
+            var precio = button.data('precio');
+            
+            var modal = $(this);
+            if(indice !== undefined) {
+                modal.find('#modalIndice').val(indice);
+                modal.find('#modalProducto').val(producto);
+                modal.find('#modalPrecio').val(precio);
+                modal.find('.modal-title').text('Editar Producto');
+            } else {
+                modal.find('#modalIndice').val('');
+                modal.find('#modalProducto').val('');
+                modal.find('#modalPrecio').val('');
+                modal.find('.modal-title').text('Nuevo Producto');
+            }
+        });
+    </script>
+</body>
+</html>

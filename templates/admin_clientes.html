@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gestión de Clientes</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>Gestión de Clientes</h2>
+        <button class="btn btn-success mb-3" data-toggle="modal" data-target="#clienteModal">
+            + Nuevo Cliente
+        </button>
+
+        <!-- Tabla de Clientes -->
+        <table class="table table-bordered">
+            <thead class="thead-dark">
+                <tr>
+                    <th>#</th>
+                    <th>Cédula</th>
+                    <th>Nombre</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for idx, cliente in enumerate(clientes) %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ cliente.Cédula }}</td>
+                    <td>{{ cliente.Nombre }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning" 
+                                data-toggle="modal" 
+                                data-target="#clienteModal"
+                                data-indice="{{ idx }}"
+                                data-cedula="{{ cliente.Cédula }}"
+                                data-nombre="{{ cliente.Nombre }}">
+                            Editar
+                        </button>
+                        <form method="POST" style="display: inline;">
+                            <input type="hidden" name="indice" value="{{ idx }}">
+                            <button type="submit" 
+                                    class="btn btn-sm btn-danger" 
+                                    name="eliminar"
+                                    onclick="return confirm('¿Eliminar este cliente?')">
+                                Eliminar
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <a href="/admin/panel" class="btn btn-secondary">Volver</a>
+    </div>
+
+    <!-- Modal para Editar/Crear -->
+    <div class="modal fade" id="clienteModal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Gestión de Cliente</h5>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <form method="POST">
+                    <div class="modal-body">
+                        <input type="hidden" name="indice" id="modalIndice">
+                        <div class="form-group">
+                            <label>Cédula</label>
+                            <input type="text" class="form-control" name="cedula" id="modalCedula" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Nombre Completo</label>
+                            <input type="text" class="form-control" name="nombre" id="modalNombre" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" name="guardar">Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $('#clienteModal').on('show.bs.modal', function (event) {
+            var button = $(event.relatedTarget);
+            var indice = button.data('indice');
+            var cedula = button.data('cedula');
+            var nombre = button.data('nombre');
+            
+            var modal = $(this);
+            if(indice !== undefined) {
+                modal.find('#modalIndice').val(indice);
+                modal.find('#modalCedula').val(cedula);
+                modal.find('#modalNombre').val(nombre);
+                modal.find('.modal-title').text('Editar Cliente');
+            } else {
+                modal.find('#modalIndice').val('');
+                modal.find('#modalCedula').val('');
+                modal.find('#modalNombre').val('');
+                modal.find('.modal-title').text('Nuevo Cliente');
+            }
+        });
+    </script>
+</body>
+</html>

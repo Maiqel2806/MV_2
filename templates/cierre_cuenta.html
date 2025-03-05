@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">Cierre de Cuenta - {{ cliente.Nombre }}</h2>
+    
+    <!-- Tabla de consumos -->
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>Producto</th>
+                    <th>Cantidad</th>
+                    <th>Precio Unitario</th>
+                    <th>Total</th>
+                    <th>Fecha/Hora</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for consumo in consumos %}
+                <tr>
+                    <td>{{ consumo.Producto }}</td>
+                    <td>{{ consumo.Cantidad }}</td>
+                    <td>${{ "%.2f"|format(consumo.Precio) }}</td>
+                    <td>${{ "%.2f"|format(consumo.Cantidad * consumo.Precio) }}</td>
+                    <td>{{ consumo.Fecha_Hora }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Total a pagar -->
+    <div class="alert alert-warning text-center h4">
+        Total a Pagar: ${{ "%.2f"|format(total) }}
+    </div>
+
+    <!-- Botón para abrir modal de pago -->
+    <div class="d-grid gap-2">
+        <button type="button" 
+                class="btn btn-success btn-lg" 
+                data-bs-toggle="modal" 
+                data-bs-target="#modalConfirmacionPago">
+            <i class="fas fa-cash-register"></i> Marcar Como Pagado
+        </button>
+    </div>
+
+    <!-- Modal de confirmación de pago -->
+    <div class="modal fade" id="modalConfirmacionPago" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">Confirmar Método de Pago</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST" action="{{ url_for('marcar_pagado', cedula=cliente.Cédula) }}" id="pagoForm">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Seleccione el método de pago:</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="metodo_pago" 
+                                       id="efectivo" value="Efectivo" required>
+                                <label class="form-check-label" for="efectivo">
+                                    <i class="fas fa-money-bill-wave"></i> Efectivo
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="metodo_pago" 
+                                       id="transferencia" value="Transferencia">
+                                <label class="form-check-label" for="transferencia">
+                                    <i class="fas fa-university"></i> Transferencia
+                                </label>
+                            </div>
+                            <div id="metodoPagoError" class="invalid-feedback">
+                                Por favor, seleccione un método de pago.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times"></i> Cancelar
+                        </button>
+                        <button type="submit" class="btn btn-primary" id="confirmarPagoBtn" disabled>
+                            <i class="fas fa-check"></i> Confirmar Pago
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Botón Volver -->
+    <div class="mt-4 text-center">
+        <a href="{{ url_for('clientes') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Volver a Clientes
+        </a>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('pagoForm');
+        const confirmarPagoBtn = document.getElementById('confirmarPagoBtn');
+        const metodoPagoError = document.getElementById('metodoPagoError');
+
+        form.addEventListener('change', function() {
+            const metodoPagoSeleccionado = document.querySelector('input[name="metodo_pago"]:checked');
+            if (metodoPagoSeleccionado) {
+                confirmarPagoBtn.disabled = false;
+                metodoPagoError.style.display = 'none';
+            } else {
+                confirmarPagoBtn.disabled = true;
+                metodoPagoError.style.display = 'block';
+            }
+        });
+
+        form.addEventListener('submit', function(event) {
+            const metodoPagoSeleccionado = document.querySelector('input[name="metodo_pago"]:checked');
+            if (!metodoPagoSeleccionado) {
+                event.preventDefault();
+                metodoPagoError.style.display = 'block';
+            }
+        });
+    });
+</script>
+{% endblock %}
