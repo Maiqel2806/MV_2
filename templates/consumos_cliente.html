@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4"><i class="fas fa-file-invoice-dollar me-2"></i>Detalles de Consumos</h2>
+    
+    <!-- Tarjeta de información del cliente -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <i class="fas fa-user me-2"></i>Cliente: {{ cliente.Nombre }}
+        </div>
+        <div class="card-body">
+            <dl class="row">
+                <dt class="col-sm-3">Cédula:</dt>
+                <dd class="col-sm-9">{{ cliente.Cédula }}</dd>
+            </dl>
+        </div>
+    </div>
+
+    <!-- Tabla de consumos -->
+    <div class="card">
+        <div class="card-header bg-success text-white">
+            <i class="fas fa-list-alt me-2"></i>Historial de Consumos
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Producto</th>
+                            <th>Cantidad</th>
+                            <th>Precio Unitario</th>
+                            <th>Total</th>
+                            <th>Método Pago</th>
+                            <th>Estado</th>
+                            <th>Fecha</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for consumo in consumos %}
+                        <tr>
+                            <td>{{ consumo.Producto }}</td>
+                            <td>{{ consumo.Cantidad }}</td>
+                            <td>${{ "%.2f"|format(consumo.Precio) }}</td>
+                            <td>${{ "%.2f"|format(consumo.Cantidad * consumo.Precio) }}</td>
+                            <td>{{ consumo.Método_Pago }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if consumo.Estado == 'CANCELADO' else 'warning' }}">
+                                    {{ consumo.Estado }}
+                                </span>
+                            </td>
+                            <td>{{ consumo.Fecha_Hora }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted">No hay registros de consumo</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <a href="{{ url_for('clientes') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Volver a Clientes
+        </a>
+    </div>
+</div>
+{% endblock %}

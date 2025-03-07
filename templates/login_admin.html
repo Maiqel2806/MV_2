@@ -40,11 +40,25 @@
                 <i class="fas fa-sign-in-alt"></i> Ingresar
                 
             </button>
-            <a href="/" class="btn btn-secondary btn-block mt-2">
-                <i class="fas fa-arrow-left"></i> Volver
-                <a href="/admin/registro" class="text-muted">Crear Admin</a>
+
+            <div class="mt-3 d-flex justify-content-between">
+                <a href="{{ url_for('recuperar_password_admin') }}" class="text-muted">
+                    <small>¿Olvidaste tu contraseña?</small>
+                </a>
+                <a href="{{ url_for('registro_admin') }}" class="text-muted">
+                    <small>Crear Admin</small>
+                </a>
+            </div>
+
+           </form>
+
+           <!-- Botón Volver -->
+        <div class="mt-4">
+            <a href="{{ url_for('inicio') }}" class="btn btn-secondary btn-lg">
+                <i class="fas fa-arrow-left me-2"></i>Volver al Inicio
             </a>
-        </form>
+        </div>
+           
     </div>
 </div>
 {% endblock %}

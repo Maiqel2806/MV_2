@@ -2,53 +2,109 @@
 
 {% block content %}
 <div class="container">
-    <h1 class="mb-4"><i class="fas fa-users me-2"></i>Clientes</h1>
-    
-    <!-- Formulario -->
-    <form method="POST" class="card p-4 mb-4 shadow needs-validation" novalidate>
-        <div class="row g-3">
-            <!-- Cédula -->
-            <div class="col-md-6">
-                <label for="cedula" class="form-label">Cédula</label>
-                <input type="text" class="form-control form-control-lg" id="cedula"
-                       name="cedula" placeholder="Cédula" pattern="[0-9]{10}" required>
-                <div class="invalid-feedback">Ingrese una cédula válida de 10 dígitos.</div>
-            </div>
+    <h2 class="mb-4"><i class="fas fa-users me-2"></i>Gestión de Clientes</h2>
 
-            <!-- Nombre -->
-            <div class="col-md-6">
-                <label for="nombre" class="form-label">Nombre</label>
-                <input type="text" class="form-control form-control-lg" id="nombre"
-                       name="nombre" placeholder="Nombre" pattern="[A-Za-zÁÉÍÓÚáéíóúñÑ ]{3,}" required>
-                <div class="invalid-feedback">El nombre debe contener al menos 3 letras.</div>
-            </div>
+    <!-- Formulario de registro -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <i class="fas fa-user-plus me-2"></i>Registrar Nuevo Cliente
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('clientes') }}">
+                <div class="row g-3">
+                    <div class="col-md-5">
+                        <input type="text" 
+                               class="form-control" 
+                               name="cedula" 
+                               placeholder="Cédula"
+                               pattern="\d{10}" 
+                               title="10 dígitos numéricos"
+                               required>
+                    </div>
+                    <div class="col-md-5">
+                        <input type="text" 
+                               class="form-control" 
+                               name="nombre" 
+                               placeholder="Nombre Completo"
+                               pattern="[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+" 
+                               title="Solo letras y espacios"
+                               required>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="fas fa-save me-2"></i>Registrar
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
 
-            <!-- Botón Registrar -->
-            <div class="col-12">
-                <button type="submit" class="btn btn-primary btn-lg w-100">
-                    <i class="fas fa-user-plus me-2"></i>Registrar Cliente
-                </button>
+    <!-- Sección de clientes -->
+    <div class="row">
+        <!-- Clientes Cuenta Abierta -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-warning">
+                    <i class="fas fa-folder-open me-2"></i>Clientes Cuenta Abierta
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% for cliente in clientes_abiertos %}
+                        <a href="{{ url_for('consumos', cedula=cliente.Cédula) }}" 
+                           class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="mb-1">{{ cliente.Nombre }}</h5>
+                                <small>Cédula: {{ cliente.Cédula }}</small>
+                            </div>
+                            <span class="badge bg-primary rounded-pill">
+                                <i class="fas fa-cash-register me-2"></i>Registrar consumo
+                            </span>
+                        </a>
+                        {% else %}
+                        <div class="text-center text-muted py-3">
+                            No hay clientes con cuenta abierta
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
             </div>
         </div>
-    </form>
 
-    <!-- Lista -->
-    <div class="list-group shadow">
-        {% for cliente in clientes %}
-        <div class="list-group-item d-flex justify-content-between align-items-center">
-            <div class="fw-bold">{{ cliente.Nombre }} <small class="text-muted">({{ cliente.Cédula }})</small></div>
-            <a href="{{ url_for('consumos', cedula=cliente.Cédula) }}" 
-               class="btn btn-primary btn-sm">
-                <i class="fas fa-cash-register me-1"></i>Agregar Consumo
-            </a>
+        <!-- Clientes Cuenta Cerrada -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white">
+                    <i class="fas fa-folder-closed me-2"></i>Clientes Cuenta Cerrada
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% for cliente in clientes_cerrados %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="mb-1">{{ cliente.Nombre }}</h5>
+                                <small>Cédula: {{ cliente.Cédula }}</small>
+                            </div>
+                            <a href="{{ url_for('ver_consumos_cliente', cedula=cliente.Cédula) }}" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-file-invoice-dollar me-2"></i>Ver detalles
+                            </a>
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-3">
+                            No hay clientes con cuenta cerrada
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
         </div>
-        {% endfor %}
     </div>
 
     <!-- Botón Volver -->
     <div class="mt-4 text-center">
-        <a href="{{ url_for('login') }}" class="btn btn-secondary btn-lg">
-            <i class="fas fa-arrow-left me-2"></i>Volver
+        <a href="{{ url_for('login') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Volver a Acceso Caja
         </a>
     </div>
 </div>

@@ -1,20 +1,28 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Generar Reporte</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-</head>
-<body>
-    <div class="container mt-4">
-        <h2>Generar Reporte Diario</h2>
-        <form method="POST">
-            <div class="form-group">
-                <label>Seleccione la fecha:</label>
-                <input type="date" class="form-control" name="fecha" required>
-            </div>
-            <button type="submit" class="btn btn-primary">Generar Reporte</button>
-            <a href="/admin/panel" class="btn btn-secondary">Volver</a>
-        </form>
+{% extends "base_admin.html" %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4"><i class="fas fa-file-alt me-2"></i>Generar Reporte</h2>
+    
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <i class="fas fa-calendar-alt me-2"></i>Seleccione una Fecha
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('generar_reportes') }}">
+                <div class="mb-3">
+                    <label for="fecha" class="form-label">Fecha:</label>
+                    <input type="date" class="form-control" id="fecha" name="fecha" required>
+                </div>
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-download me-2"></i>Generar Reporte
+                </button>
+            </form>
+        </div>
     </div>
-</body>
-</html>
+
+    <div class="mt-4">
+    <a href="/admin/panel" class="btn btn-secondary">Volver</a>
+</div>
+</div>
+{% endblock %}
