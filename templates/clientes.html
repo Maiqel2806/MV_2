@@ -1,6 +1,17 @@
 {% extends "base.html" %}
 
 {% block content %}
+<script>
+    window.onload = function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('success')) {
+            alert("Pago registrado exitosamente");
+            // Limpiar parámetro de la URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    };
+</script>
+
 <div class="container">
     <h2 class="mb-4"><i class="fas fa-users me-2"></i>Gestión de Clientes</h2>
 

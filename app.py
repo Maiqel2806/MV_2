@@ -1,7 +1,7 @@
 import os
 import re
 import pandas as pd
-from flask import Flask, render_template, request, redirect, url_for, session, send_file
+from flask import Flask, render_template, request, redirect, url_for, session, send_file, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 from functools import wraps
@@ -36,7 +36,7 @@ EXCEL_CLIENTES = os.path.join(DATA_DIR, "clientes.xlsx")
 EXCEL_CONSUMOS = os.path.join(DATA_DIR, "consumos.xlsx")
 EXCEL_PRODUCTOS = os.path.join(DATA_DIR, "productos.xlsx")
 INVENTARIO_EXCEL = os.path.join(DATA_DIR, "inventario.xlsx")
-
+VENTAS_EXCEL = os.path.join(DATA_DIR, "Ventas_Entradas.xlsx")
 
 # Columnas para consumos
 CONSUMOS_COLS = ["Cédula", "Producto", "Cantidad", "Precio", "Método_Pago", "Fecha_Hora", "Estado"]
@@ -45,7 +45,15 @@ CONSUMOS_COLS = ["Cédula", "Producto", "Cantidad", "Precio", "Método_Pago", "F
 def inicializar_archivos():
 
     if not os.path.exists(EXCEL_PRODUCTOS):
+    # Crear con columnas correctas
         pd.DataFrame(columns=["Nombre", "Precio", "Categoría", "Existencias"]).to_excel(EXCEL_PRODUCTOS, index=False)
+    else:
+    # Verificar columnas
+        df_productos = pd.read_excel(EXCEL_PRODUCTOS)
+    if "Nombre" not in df_productos.columns:
+        # Corregir si el archivo existente tiene "Producto" como columna
+        df_productos.rename(columns={"Producto": "Nombre"}, inplace=True)
+        df_productos.to_excel(EXCEL_PRODUCTOS, index=False)
 
     if not os.path.exists(INVENTARIO_EXCEL):
         pd.DataFrame(columns=["Producto", "Cantidad", "Costo_Unitario", "PVP", "Ganancia"]).to_excel(INVENTARIO_EXCEL, index=False)
@@ -82,29 +90,91 @@ def inicializar_archivos():
     # Productos
     if not os.path.exists(EXCEL_PRODUCTOS):
         productos_iniciales = [
-            {"Producto": "Salchipapas", "Precio": 3.50},
-            {"Producto": "Chochos con tostado", "Precio": 2.50},
-            {"Producto": "Coca cola pequeña", "Precio": 1.50},
-            {"Producto": "Gaseosa de sabores mediana", "Precio": 2.00},
-            {"Producto": "Agua sin gas", "Precio": 1.00},
-            {"Producto": "Fuze Tea mediano", "Precio": 2.20},
-            {"Producto": "Güitig grande", "Precio": 2.50},
-            {"Producto": "Coca cola grande", "Precio": 2.50},
-            {"Producto": "Gaseosa de sabores grande", "Precio": 2.50},
-            {"Producto": "Fuze Tea grande", "Precio": 2.50},
-            {"Producto": "Gatorade", "Precio": 2.80},
-            {"Producto": "Papas sin marca", "Precio": 1.00},
-            {"Producto": "Chifles de Sal", "Precio": 1.20},
-            {"Producto": "Chifles de Dulce", "Precio": 1.20},
-            {"Producto": "Galletitas", "Precio": 0.80}
+            {"Nombre": "Salchipapas", "Precio": 3.50},
+            {"Nombre": "Chochos con tostado", "Precio": 2.50},
+            {"Nombre": "Coca cola pequeña", "Precio": 1.50},
+            {"Nombre": "Gaseosa de sabores mediana", "Precio": 2.00},
+            {"Nombre": "Agua sin gas", "Precio": 1.00},
+            {"Nombre": "Fuze Tea mediano", "Precio": 2.20},
+            {"Nombre": "Güitig grande", "Precio": 2.50},
+            {"Nombre": "Coca cola grande", "Precio": 2.50},
+            {"Nombre": "Gaseosa de sabores grande", "Precio": 2.50},
+            {"Nombre": "Fuze Tea grande", "Precio": 2.50},
+            {"Nombre": "Gatorade", "Precio": 2.80},
+            {"Nombre": "Papas sin marca", "Precio": 1.00},
+            {"Nombre": "Chifles de Sal", "Precio": 1.20},
+            {"Nombre": "Chifles de Dulce", "Precio": 1.20},
+            {"Nombre": "Galletitas", "Precio": 0.80}
         ]
         pd.DataFrame(productos_iniciales).to_excel(EXCEL_PRODUCTOS, index=False)
+    else:
+        # Siempre cargar el DataFrame primero
+        df_productos = pd.read_excel(EXCEL_PRODUCTOS)
+        
+        # Verificar y corregir nombre de columna si es necesario
+        if "Producto" in df_productos.columns:
+            df_productos.rename(columns={"Producto": "Nombre"}, inplace=True)
+        
+        # Asegurar que todas las columnas necesarias existan
+        columnas_requeridas = ["Nombre", "Precio", "Categoría", "Existencias"]
+        cambios = False
+        
+        for col in columnas_requeridas:
+            if col not in df_productos.columns:
+                df_productos[col] = "" if col == "Categoría" else 0
+                cambios = True
+        
+        if cambios:
+            df_productos.to_excel(EXCEL_PRODUCTOS, index=False)
     
     # Consumos
     if not os.path.exists(EXCEL_CONSUMOS):
-        pd.DataFrame(columns=CONSUMOS_COLS).to_excel(EXCEL_CONSUMOS, index=False)
+        df = pd.DataFrame(columns=CONSUMOS_COLS + ["Monto_Recibido", "Cambio", "Referencia"])
+        df.to_excel(EXCEL_CONSUMOS, index=False)
 
 inicializar_archivos()
+
+# Función para guardar ventas en Excel
+def guardar_venta_entradas(fecha, hora, adultos, ninos, tercera_edad, total, detalle):
+    datos = {
+        "Fecha": [fecha],
+        "Hora": [hora],
+        "Adultos": [adultos],
+        "Niños": [ninos],
+        "Tercera_Edad": [tercera_edad],
+        "Total_Venta": [total],
+        "Detalle": [detalle]
+    }
+    df_nueva_venta = pd.DataFrame(datos)
+
+    if os.path.exists(VENTAS_EXCEL):
+        df_existente = pd.read_excel(VENTAS_EXCEL)
+        df_final = pd.concat([df_existente, df_nueva_venta], ignore_index=True)
+    else:
+        df_final = df_nueva_venta
+
+    df_final.to_excel(VENTAS_EXCEL, index=False)
+
+@app.route('/venta_entradas', methods=['GET', 'POST'])
+def venta_entradas():
+    if request.method == "POST":
+        fecha = request.form.get("fecha")
+        adultos = int(request.form.get("adultos", 0))
+        ninos = int(request.form.get("ninos", 0))
+        tercera_edad = int(request.form.get("tercera_edad", 0))
+        detalle = request.form.get("detalle", "").strip()
+
+        total = (adultos * 6) + (ninos * 4) + (tercera_edad * 4)
+
+        # Definir la variable 'hora' ANTES de usarla
+        hora = datetime.now().strftime("%H:%M:%S")
+
+        guardar_venta_entradas(fecha, hora, adultos, ninos, tercera_edad, total, detalle)
+
+        return redirect(url_for('venta_entradas', success=1))
+
+    success = request.args.get('success', 0)
+    return render_template("venta_entradas.html", success=success)
 
 # ================= DECORADORES DE AUTENTICACIÓN =================
 def login_admin_required(f):
@@ -349,63 +419,87 @@ def login():
     
     return render_template("login.html")
 
-@app.route("/caja/entradas")
+@app.route("/caja/entradas", endpoint="venta_entradas_caja")
 @login_caja_required
 def venta_entradas():
-    # Lógica para venta de entradas (implementar según necesidades)
-    return render_template("venta_entradas.html")
+    if request.method == "POST":
+        fecha = request.form.get("fecha")
+        adultos = int(request.form.get("adultos", 0))
+        ninos = int(request.form.get("ninos", 0))
+        tercera_edad = int(request.form.get("tercera_edad", 0))
+        detalle = request.form.get("detalle", "").strip()
+
+        # Calcula total
+        total = (adultos * 6) + (ninos * 4) + (tercera_edad * 4)
+
+        # Hora actual
+        hora = datetime.now().strftime("%H:%M:%S")
+
+        # Redirigir con success=1 para mostrar pop-up
+        return redirect(url_for('venta_entradas', success=1))
+
+    # Si es GET, revisa si success=1 para mostrar el pop-up
+    success = request.args.get('success', 0)
+    return render_template("venta_entradas.html", success=success)
 
 @app.route("/caja/clientes", methods=["GET", "POST"])
 @login_caja_required
 def clientes():
     try:
-        # Leer archivos Excel
         df_clientes = pd.read_excel(EXCEL_CLIENTES)
         df_consumos = pd.read_excel(EXCEL_CONSUMOS)
         
-        # Inicializar listas vacías
-        clientes_abiertos = []
-        clientes_cerrados = []
-        
+        # Asegurar que las cédulas sean strings para comparar
+        df_clientes["Cédula"] = df_clientes["Cédula"].astype(str)
+        df_consumos["Cédula"] = df_consumos["Cédula"].astype(str)
+
         if request.method == "POST":
+            # Registrar un nuevo cliente
             cedula = request.form.get("cedula")
             nombre = request.form.get("nombre")
             
-            # Validaciones
+            # Validaciones básicas
             if not cedula.isdigit() or len(cedula) != 10:
-                return render_template("error.html", mensaje="Cédula inválida: debe tener 10 dígitos")
-                
+                return render_template("error.html", mensaje="Cédula inválida: debe tener 10 dígitos.")
             if not re.match(r'^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$', nombre):
-                return render_template("error.html", mensaje="Nombre inválido: solo letras y espacios")
-                
-            if cedula in df_clientes["Cédula"].astype(str).values:
-                return render_template("error.html", mensaje="La cédula ya está registrada")
-                
-            # Registrar nuevo cliente
+                return render_template("error.html", mensaje="Nombre inválido: solo letras y espacios.")
+            
+            # Verificar si la cédula ya está registrada
+            if cedula in df_clientes["Cédula"].values:
+                return render_template("error.html", mensaje="La cédula ya está registrada.")
+            
+            # Agregar nuevo cliente al Excel
             nuevo_cliente = pd.DataFrame([[cedula, nombre]], columns=["Cédula", "Nombre"])
             df_clientes = pd.concat([df_clientes, nuevo_cliente], ignore_index=True)
             df_clientes.to_excel(EXCEL_CLIENTES, index=False)
-            
-            # Recargar datos actualizados
-            df_clientes = pd.read_excel(EXCEL_CLIENTES)
 
-        # Clasificar clientes
-        for _, cliente in df_clientes.iterrows():
-            cedula = str(cliente["Cédula"])
-            consumos_pendientes = df_consumos[
-                (df_consumos["Cédula"] == cedula) & 
-                (df_consumos["Estado"] == "Pendiente")
-            ]
-            
-            if not consumos_pendientes.empty:
-                clientes_abiertos.append(cliente.to_dict())
+            # Recargar DataFrame de clientes
+            df_clientes = pd.read_excel(EXCEL_CLIENTES)
+            df_clientes["Cédula"] = df_clientes["Cédula"].astype(str)
+
+        # Clasificar clientes en abiertos o cerrados
+        clientes_abiertos = []
+        clientes_cerrados = []
+
+        for _, row in df_clientes.iterrows():
+            c = row["Cédula"]
+            consumos_cliente = df_consumos[df_consumos["Cédula"] == c]
+
+            # Si el cliente no tiene consumos, considerarlo "abierto" para que se puedan registrar consumos
+            if consumos_cliente.empty:
+                clientes_abiertos.append(row.to_dict())
             else:
-                clientes_cerrados.append(cliente.to_dict())
-        
-        return render_template("clientes.html", 
-                            clientes_abiertos=clientes_abiertos,
-                            clientes_cerrados=clientes_cerrados)
-                            
+                # Si existe al menos un consumo "Pendiente", está en cuenta abierta
+                pendientes = consumos_cliente[consumos_cliente["Estado"] == "Pendiente"]
+                if not pendientes.empty:
+                    clientes_abiertos.append(row.to_dict())
+                else:
+                    # Todos los consumos están cancelados => cuenta cerrada
+                    clientes_cerrados.append(row.to_dict())
+
+        return render_template("clientes.html",
+                               clientes_abiertos=clientes_abiertos,
+                               clientes_cerrados=clientes_cerrados)
     except Exception as e:
         return render_template("error.html", mensaje=f"Error crítico: {str(e)}")
 
@@ -429,56 +523,56 @@ def ver_consumos_cliente(cedula):
 @login_caja_required
 def consumos(cedula):
     try:
+        # Leer clientes
         df_clientes = pd.read_excel(EXCEL_CLIENTES)
         df_clientes["Cédula"] = df_clientes["Cédula"].astype(str)
         cliente = df_clientes[df_clientes["Cédula"] == cedula].iloc[0].to_dict()
     except:
         return redirect(url_for('clientes'))
     
-    df_productos = pd.read_excel(EXCEL_PRODUCTOS)
-    
+    # Leer productos
+    df_productos = pd.read_excel(EXCEL_PRODUCTOS)  # <--- Asegúrate de leer el archivo correcto
+    df_productos.columns = df_productos.columns.str.strip()  # Limpiar espacios
+    # Verifica que df_productos contenga las columnas ["Producto", "Precio"] al menos
+
     if request.method == "POST":
-        producto = request.form.get("producto")
-        cantidad = int(request.form.get("cantidad"))
+        producto = request.form.get("producto")  # Nombre del producto seleccionado
+        cantidad = int(request.form.get("cantidad", 0))
         fecha_hora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
         
         # Obtener precio del producto
-        precio = df_productos[df_productos["Producto"] == producto]["Precio"].values[0]
-        
-        # Crear registro sin método de pago
+        precio = df_productos[df_productos["Nombre"] == producto]["Precio"].values[0]
+
+        # Crear registro en consumos
         nuevo_consumo = pd.DataFrame([[
             cedula,
             producto,
             cantidad,
             precio,
-            "",  # Método_Pago vacío inicialmente
+            "",  # Método_Pago vacío
             fecha_hora,
             "Pendiente"
         ]], columns=CONSUMOS_COLS)
-        
-        # Guardar en Excel
+
+        # Guardar en EXCEL_CONSUMOS
         df_consumos = pd.read_excel(EXCEL_CONSUMOS)
         df_consumos = pd.concat([df_consumos, nuevo_consumo], ignore_index=True)
         df_consumos.to_excel(EXCEL_CONSUMOS, index=False)
     
-    # Filtrar consumos del día actual y pendientes
-    fecha_actual = datetime.now().strftime("%d/%m/%Y")
+    # Leer consumos actualizados
     df_consumos = pd.read_excel(EXCEL_CONSUMOS)
     df_consumos["Cédula"] = df_consumos["Cédula"].astype(str)
-    consumos_cliente = df_consumos[
-        (df_consumos["Cédula"] == cedula) & 
-        (df_consumos["Fecha_Hora"].str.contains(fecha_actual)) & 
-        (df_consumos["Estado"] == "Pendiente")
-    ]
-    
-    # Calcular total solo para los consumos pendientes del día actual
+
+    # Filtrar consumos de este cliente
+    consumos_cliente = df_consumos[df_consumos["Cédula"] == cedula]
     total = sum(consumos_cliente["Cantidad"] * consumos_cliente["Precio"])
-    
+
     return render_template("consumos.html",
-                         cliente=cliente,
-                         productos=df_productos.to_dict("records"),
-                         consumos=consumos_cliente.to_dict("records"),
-                         total=total)
+                           cliente=cliente,
+                           productos=df_productos.to_dict("records"),
+                           consumos=consumos_cliente.to_dict("records"),
+                           total=total)
+
 
 @app.route("/cierre_cuenta/<cedula>")
 @login_caja_required
@@ -512,33 +606,29 @@ def cierre_cuenta(cedula):
 def marcar_pagado(cedula):
     try:
         metodo_pago = request.form.get("metodo_pago")
-        monto_recibido = request.form.get("monto_recibido")
-        referencia = request.form.get("referencia")
+        monto_recibido = request.form.get("monto_recibido", "0")
+        referencia = request.form.get("referencia", "")
 
-        # Leer archivo de consumos
+        # Leer y validar consumos
         df_consumos = pd.read_excel(EXCEL_CONSUMOS)
-        df_consumos["Cédula"] = df_consumos["Cédula"].astype(str)
-        
-        # Filtrar consumos pendientes del cliente
         mask = (df_consumos["Cédula"] == cedula) & (df_consumos["Estado"] == "Pendiente")
         
-        # Actualizar consumos
+        if df_consumos[mask].empty:
+            return redirect(url_for('clientes'))
+
+        # Actualizar registros
         df_consumos.loc[mask, "Estado"] = "CANCELADO"
         df_consumos.loc[mask, "Método_Pago"] = metodo_pago
         
-        # Guardar datos adicionales según el método de pago
         if metodo_pago == "Efectivo":
             df_consumos.loc[mask, "Monto_Recibido"] = float(monto_recibido)
-            df_consumos.loc[mask, "Cambio"] = float(monto_recibido) - sum(
-                df_consumos.loc[mask, "Cantidad"] * df_consumos.loc[mask, "Precio"]
-            )
+            df_consumos.loc[mask, "Cambio"] = float(monto_recibido) - df_consumos.loc[mask, "Precio"].sum()
         elif metodo_pago == "Transferencia":
             df_consumos.loc[mask, "Referencia"] = referencia
+
+        df_consumos.to_excel(EXCEL_CONSUMOS, index=False)
         
-        # Guardar cambios (agregar engine='openpyxl' si es necesario)
-        df_consumos.to_excel(EXCEL_CONSUMOS, index=False, engine='openpyxl')  # <-- Asegurar guardado
-        
-        return redirect(url_for('clientes'))
+        return redirect(url_for('clientes', success=1))
     
     except Exception as e:
         return render_template("error.html", mensaje=f"Error: {str(e)}")
@@ -706,25 +796,27 @@ def admin_inventario():
 
 @app.route("/bar/registrar_consumo", methods=["POST"])
 @login_required
-def registrar_consumo():
-    producto = request.form.get("producto")
-    cantidad = int(request.form.get("cantidad"))
+def registrar_consumo(cedula):
+    if request.method == "POST":
+        producto_nombre = request.form.get("producto")
+        cantidad = int(request.form.get("cantidad"))
 
-    df_prod = pd.read_excel(EXCEL_PRODUCTOS)
+        print("Producto recibido:", producto_nombre)
 
-    # Verificar si hay suficiente stock
-    if producto in df_prod["Nombre"].values:
-        existencias_actuales = df_prod.loc[df_prod["Nombre"] == producto, "Existencias"].values[0]
-        if existencias_actuales >= cantidad:
-            df_prod.loc[df_prod["Nombre"] == producto, "Existencias"] -= cantidad
-            df_prod.to_excel(EXCEL_PRODUCTOS, index=False)
-            flash("Consumo registrado correctamente.", "success")
-        else:
-            flash("No hay suficiente stock para este producto.", "danger")
-    else:
-        flash("El producto no existe en el sistema.", "danger")
+        # Verificar si el producto existe en el DataFrame
+        if producto_nombre not in df_productos["Producto"].values:
+            return "Error: Producto no encontrado", 400
 
-    return redirect(url_for("bar"))
+        # Obtener el precio del producto
+        precio_unitario = df_productos.loc[df_productos["Producto"] == producto_nombre, "Precio"].values[0]
+
+        # Guardar el consumo (puedes almacenarlo donde desees)
+        nuevo_consumo = {"Producto": producto_nombre, "Cantidad": cantidad, "Precio": precio_unitario}
+        print("Consumo agregado:", nuevo_consumo)
+
+        return redirect(url_for("registrar_consumo", cedula=cedula))
+
+    return render_template("consumos.html", productos=df_productos.to_dict(orient="records"))
 
 
 

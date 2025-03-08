@@ -2,15 +2,27 @@
 
 {% block content %}
 <div class="container">
+
+    <!-- Título -->
     <h2 class="mb-4"><i class="fas fa-ticket-alt me-2"></i>Venta de Entradas</h2>
     
+    <!-- Formulario -->
     <form method="POST" class="card p-4 shadow">
-        <!-- Selector de fecha -->
-        <div class="mb-4">
+        
+        <!-- Selector de fecha (readonly) -->
+        <div class="mb-3">
             <label class="form-label h5">Fecha de la visita:</label>
             <input type="date" class="form-control form-control-lg" 
-                   name="fecha" required>
+                   name="fecha" id="fecha" required readonly>
         </div>
+
+        <!-- Script para poner la fecha de hoy por defecto -->
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                let hoy = new Date().toISOString().split('T')[0];
+                document.getElementById('fecha').value = hoy;
+            });
+        </script>
 
         <!-- Selector de cantidades -->
         <div class="mb-4">
@@ -41,7 +53,7 @@
             </div>
 
             <!-- Tercera Edad -->
-            <div class="row align-items-center mb-4">
+            <div class="row align-items-center mb-3">
                 <div class="col-md-6">
                     <label class="form-label">Tercera Edad (65+ años)</label>
                     <small class="text-muted d-block">$4 por entrada</small>
@@ -58,6 +70,12 @@
             </div>
         </div>
 
+        <!-- Campo Detalle -->
+        <div class="mb-4">
+            <label for="detalle" class="form-label h5">Detalle (Opcional):</label>
+            <textarea class="form-control" name="detalle" rows="3" placeholder="Observaciones..."></textarea>
+        </div>
+
         <!-- Botones -->
         <div class="d-flex justify-content-between mt-4">
             <a href="{{ url_for('login') }}" class="btn btn-secondary btn-lg">
@@ -70,7 +88,7 @@
     </form>
 </div>
 
-<!-- Script para cálculo automático -->
+<!-- Cálculo automático del total -->
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const precios = {
@@ -88,13 +106,30 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('total').textContent = total.toFixed(2);
     }
 
-    // Event listeners para los inputs
+    // Recalcular cada vez que cambian los inputs
     document.querySelectorAll('input[type="number"]').forEach(input => {
         input.addEventListener('input', calcularTotal);
     });
 
-    // Calcular inicialmente
+    // Calcular al inicio
     calcularTotal();
+});
+</script>
+
+<!-- SweetAlert2 para pop-up de confirmación -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Detectar si la URL tiene ?success=1
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('success') === '1') {
+        Swal.fire({
+            title: 'Venta Exitosa',
+            text: 'La venta se registró correctamente.',
+            icon: 'success',
+            confirmButtonText: 'OK'
+        });
+    }
 });
 </script>
 {% endblock %}

@@ -4,27 +4,31 @@
 <div class="container">
     <h2 class="mb-4"><i class="fas fa-receipt me-2"></i>Consumos - {{ cliente.Nombre }}</h2>
 
-    <!-- Formulario -->
+    <!-- Formulario para agregar consumos -->
     <form method="POST" class="card p-4 mb-4 shadow" id="consumoForm">
         <div class="row g-3 align-items-center">
+            <!-- Selección de producto -->
             <div class="col-md-5">
                 <select class="form-select form-select-lg" id="producto" name="producto" required>
                     <option value="">Seleccione producto</option>
-                    {% for producto in productos %}
-                    <option value="{{ producto.Producto }}" data-precio="{{ producto.Precio }}">
-                        {{ producto.Producto }} - ${{ producto.Precio }}
+                    {% for p in productos %}
+                    <!-- Ajuste: mostrar p.Nombre y p.Precio formateado -->
+                    <option value="{{ p.Nombre }}">
+                        {{ p.Nombre }} - ${{ "%.2f"|format(p.Precio) }}
                     </option>
                     {% endfor %}
                 </select>
                 <div class="invalid-feedback">Seleccione un producto válido.</div>
             </div>
 
+            <!-- Cantidad -->
             <div class="col-md-3">
-                <input type="number" class="form-control form-control-lg" id="cantidad" 
+                <input type="number" class="form-control form-control-lg" id="cantidad"
                        name="cantidad" placeholder="Cantidad" required min="1">
                 <div class="invalid-feedback">Ingrese una cantidad válida (mínimo 1).</div>
             </div>
 
+            <!-- Botón Agregar -->
             <div class="col-md-4">
                 <button type="submit" class="btn btn-primary btn-lg w-100" id="submitBtn">
                     <i class="fas fa-cart-plus me-2"></i>Agregar
@@ -33,7 +37,7 @@
         </div>
     </form>
 
-    <!-- Historial -->
+    <!-- Historial de consumos -->
     <div class="card shadow">
         <div class="card-header bg-primary text-white">
             <h5 class="mb-0"><i class="fas fa-history me-2"></i>Historial</h5>
@@ -41,7 +45,10 @@
         <div class="card-body">
             {% for consumo in consumos %}
             <div class="d-flex justify-content-between border-bottom py-2">
-                <div>{{ consumo.Producto }} ({{ consumo.Cantidad }} x ${{ consumo.Precio }})</div>
+                <!-- Muestra el producto, cantidad y precio unitario -->
+                <div>
+                    {{ consumo.Producto }} ({{ consumo.Cantidad }} x ${{ "%.2f"|format(consumo.Precio) }})
+                </div>
                 <div class="text-muted">{{ consumo.Fecha_Hora }}</div>
             </div>
             {% endfor %}
@@ -53,14 +60,14 @@
         <a href="{{ url_for('clientes') }}" class="btn btn-secondary btn-lg">
             <i class="fas fa-arrow-left me-2"></i>Volver
         </a>
-
-        <a href="{{ url_for('cierre_cuenta', cedula=cliente.Cédula) }}" 
+        <a href="{{ url_for('cierre_cuenta', cedula=cliente.Cédula) }}"
            class="btn btn-primary btn-lg">
             <i class="fas fa-file-invoice-dollar me-2"></i>Cerrar Cuenta
         </a>
     </div>
 </div>
 
+<!-- Script de validación en tiempo real -->
 <script>
 document.addEventListener("DOMContentLoaded", function() {
     const form = document.getElementById("consumoForm");
@@ -102,6 +109,7 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     });
 
+    // Ejecutar validación inicial
     validarFormulario();
 });
 </script>

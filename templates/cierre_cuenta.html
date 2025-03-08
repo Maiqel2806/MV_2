@@ -53,7 +53,7 @@
                     <h5 class="modal-title"><i class="fas fa-credit-card"></i> Confirmar Método de Pago</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                <form method="POST" action="{{ url_for('marcar_pagado', cedula=cliente.Cedula) }}" id="pagoForm">
+                <form method="POST" action="{{ url_for('marcar_pagado', cedula=cliente.Cédula) }}" id="pagoForm">
                     <div class="modal-body">
                         <div class="mb-3">
                             <label class="form-label">Seleccione el método de pago:</label>
@@ -128,83 +128,63 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('pagoForm');
+    const total = parseFloat("{{ total }}") || 0;
     const confirmarPagoBtn = document.getElementById('confirmarPagoBtn');
-    const metodoPagoError = document.getElementById('metodoPagoError');
     const efectivoCampos = document.getElementById('efectivoCampos');
     const transferenciaCampos = document.getElementById('transferenciaCampos');
-    const montoRecibidoInput = document.getElementById('montoRecibido');
-    const cambioInput = document.getElementById('cambio');
-    const total = parseFloat("{{ total }}") || 0;
 
-
-    // Mostrar campos según el método de pago seleccionado
-    function mostrarCamposPago() {
-        const metodoPagoSeleccionado = document.querySelector('input[name="metodo_pago"]:checked');
-        if (metodoPagoSeleccionado) {
-            if (metodoPagoSeleccionado.value === "Efectivo") {
-                efectivoCampos.style.display = "block";
-                transferenciaCampos.style.display = "none";
-                montoRecibidoInput.required = true;
-            } else if (metodoPagoSeleccionado.value === "Transferencia") {
-                efectivoCampos.style.display = "none";
-                transferenciaCampos.style.display = "block";
-                montoRecibidoInput.required = false;
-            }
-        } else {
-            efectivoCampos.style.display = "none";
-            transferenciaCampos.style.display = "none";
-        }
+    // Mostrar campos según el método de pago
+    function mostrarCampos() {
+        const metodoPago = document.querySelector('input[name="metodo_pago"]:checked');
+        efectivoCampos.style.display = metodoPago?.value === "Efectivo" ? "block" : "none";
+        transferenciaCampos.style.display = metodoPago?.value === "Transferencia" ? "block" : "none";
     }
 
-    // Calcular cambio si el método es efectivo
-    function calcularCambio() {
-        const montoRecibido = parseFloat(montoRecibidoInput.value);
-        if (montoRecibido >= total) {
-            const cambio = montoRecibido - total;
-            cambioInput.value = `$${cambio.toFixed(2)}`;
-        } else {
-            cambioInput.value = "Monto insuficiente";
+    // Validar formulario en tiempo real
+    function validarFormulario() {
+        const metodoPago = document.querySelector('input[name="metodo_pago"]:checked');
+        const montoRecibido = document.getElementById('montoRecibido')?.value;
+        const referencia = document.getElementById('referencia')?.value;
+
+        let valido = true;
+
+        if (!metodoPago) {
+            valido = false;
+        } else if (metodoPago.value === "Efectivo") {
+            valido = montoRecibido && parseFloat(montoRecibido) >= total;
+        } else if (metodoPago.value === "Transferencia") {
+            valido = referencia.trim() !== "";
         }
+
+        confirmarPagoBtn.disabled = !valido;
     }
 
-    // Validar selección de método de pago
-    function validarSeleccion() {
-        const metodoPagoSeleccionado = document.querySelector('input[name="metodo_pago"]:checked');
-        if (metodoPagoSeleccionado) {
-            confirmarPagoBtn.disabled = false;
-            metodoPagoError.style.display = 'none';
-        } else {
-            confirmarPagoBtn.disabled = true;
-            metodoPagoError.style.display = 'block';
-        }
-    }
+    // Calcular cambio automático
+    document.getElementById('montoRecibido')?.addEventListener('input', function() {
+        const monto = parseFloat(this.value) || 0;
+        const cambio = monto - total;
+        document.getElementById('cambio').value = cambio >= 0 ? `$${cambio.toFixed(2)}` : "Monto insuficiente";
+        validarFormulario();
+    });
 
-    // Event listeners
+    // Eventos principales
     form.addEventListener('change', function() {
-        mostrarCamposPago();
-        validarSeleccion();
+        mostrarCampos();
+        validarFormulario();
     });
 
-    montoRecibidoInput.addEventListener('input', calcularCambio);
+    form.addEventListener('input', validarFormulario);
 
-    form.addEventListener('submit', function(event) {
-        const metodoPagoSeleccionado = document.querySelector('input[name="metodo_pago"]:checked');
-        if (!metodoPagoSeleccionado) {
-            event.preventDefault();
-            metodoPagoError.style.display = 'block';
-        } else {
-            if (!confirm("¿Está seguro de marcar la cuenta como pagada?")) {
-                event.preventDefault();
-            } else {
-                confirmarPagoBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
-                confirmarPagoBtn.disabled = true;
-            }
+    // Confirmación de envío
+    form.addEventListener('submit', function(e) {
+        if (!confirm("¿Confirmar el pago?")) {
+            e.preventDefault();
         }
     });
 
-    // Inicializar
-    mostrarCamposPago();
-    validarSeleccion();
+    // Inicialización
+    mostrarCampos();
+    validarFormulario();
 });
 </script>
 {% endblock %}
