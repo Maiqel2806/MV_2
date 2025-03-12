@@ -2,27 +2,20 @@
 
 {% block content %}
 <div class="container">
-    <h2 class="mb-4"><i class="fas fa-file-alt me-2"></i>Generar Reporte</h2>
-    
-    <div class="card">
-        <div class="card-header bg-primary text-white">
-            <i class="fas fa-calendar-alt me-2"></i>Seleccione una Fecha
-        </div>
-        <div class="card-body">
-            <form method="POST" action="{{ url_for('generar_reportes') }}">
-                <div class="mb-3">
-                    <label for="fecha" class="form-label">Fecha:</label>
-                    <input type="date" class="form-control" id="fecha" name="fecha" required>
-                </div>
-                <button type="submit" class="btn btn-success">
-                    <i class="fas fa-download me-2"></i>Generar Reporte
-                </button>
-            </form>
-        </div>
-    </div>
+    <h2 class="mb-4"><i class="fas fa-file-excel me-2"></i>Generar Reporte de Ventas</h2>
 
-    <div class="mt-4">
-    <a href="/admin/panel" class="btn btn-secondary">Volver</a>
+    <form method="POST" action="{{ url_for('generar_reportes') }}">
+        <div class="mb-3">
+            <label for="fecha" class="form-label">Seleccione la Fecha</label>
+            <input type="date" class="form-control" id="fecha" name="fecha" required>
+        </div>
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-download me-2"></i>Generar Reporte
+        </button>
+    </form>
 </div>
+
+<div class="mt-4">
+    <a href="/admin/panel" class="btn btn-secondary">Volver</a>
 </div>
 {% endblock %}

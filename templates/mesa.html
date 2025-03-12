@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mesa {{ mesa }}</title>
+    <style>
+        #notificacion {
+            display: none;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Mesa {{ mesa }}</h1>
+    <div id="notificacion">¡Tu pedido está listo!</div>
+
+    <script>
+        // Conectar al stream de Server-Sent Events (SSE)
+        const eventSource = new EventSource(`/stream_estado/{{ mesa }}`);
+
+        // Escuchar mensajes del servidor
+        eventSource.onmessage = (event) => {
+            const notificacion = document.getElementById("notificacion");
+            notificacion.style.display = "block";  // Mostrar la notificación
+            notificacion.textContent = event.data; // Mostrar el mensaje del servidor
+        };
+
+        // Manejar errores
+        eventSource.onerror = () => {
+            console.error("Error en la conexión SSE.");
+            eventSource.close();  // Cerrar la conexión si hay un error
+        };
+    </script>
+</body>
+</html>

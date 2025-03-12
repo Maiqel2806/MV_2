@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4"><i class="fas fa-cash-register me-2"></i>Registrar Consumo - Mesa {{ mesa }}</h2>
+
+    <!-- Mostrar mensajes flash -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Formulario para registrar consumo -->
+    <form method="POST" action="{{ url_for('registrar_consumo', mesa=mesa) }}">
+        <div class="mb-3">
+            <label for="producto" class="form-label">Producto</label>
+            <select class="form-select" id="producto" name="producto" required>
+                {% for producto in productos %}
+                <option value="{{ loop.index0 }}">{{ producto.Nombre }} - ${{ producto.Precio }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-3">
+            <label for="cantidad" class="form-label">Cantidad</label>
+            <input type="number" class="form-control" id="cantidad" name="cantidad" min="1" required>
+        </div>
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-2"></i>Registrar Consumo
+        </button>
+    </form>
+
+    <!-- Lista de consumos registrados -->
+    <div class="mt-4">
+        <h4>Consumos Registrados</h4>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>Cantidad</th>
+                    <th>Precio Unitario</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for consumo in consumos %}
+                <tr>
+                    <td>{{ consumo.Producto }}</td>
+                    <td>{{ consumo.Cantidad }}</td>
+                    <td>${{ consumo.Precio }}</td>
+                    <td>${{ consumo.Total }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4" class="text-center">No hay consumos registrados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Total a pagar -->
+    <div class="mt-4">
+        <h4>Total a Pagar: ${{ total_pagar }}</h4>
+    </div>
+
+    <!-- Botón Pagar -->
+    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#pagarModal">
+        <i class="fas fa-money-bill-wave me-2"></i>Pagar
+    </button>
+
+    <!-- Modal para seleccionar método de pago -->
+    <div class="modal fade" id="pagarModal" tabindex="-1" aria-labelledby="pagarModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="pagarModalLabel">Seleccionar Método de Pago</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form method="POST" action="{{ url_for('procesar_pago', mesa=mesa) }}">
+                        <div class="mb-3">
+                            <label for="metodo_pago" class="form-label">Método de Pago</label>
+                            <select class="form-select" id="metodo_pago" name="metodo_pago" required>
+                                <option value="Efectivo">Efectivo</option>
+                                <option value="Transferencia">Transferencia</option>
+                            </select>
+                        </div>
+                        <div class="mb-3" id="referenciaField" style="display: none;">
+                            <label for="referencia" class="form-label">Número de Referencia</label>
+                            <input type="text" class="form-control" id="referencia" name="referencia">
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-check me-2"></i>Confirmar Pago
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Botón Volver -->
+    <div class="mt-4">
+        <a href="{{ url_for('mesas') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Volver a Mesas
+        </a>
+    </div>
+</div>
+
+<!-- Script para mostrar/ocultar el campo de referencia -->
+<script>
+    document.getElementById('metodo_pago').addEventListener('change', function() {
+        var referenciaField = document.getElementById('referenciaField');
+        if (this.value === 'Transferencia') {
+            referenciaField.style.display = 'block';
+        } else {
+            referenciaField.style.display = 'none';
+        }
+    });
+</script>
+
+<!-- Script para notificaciones SSE -->
+<script>
+    const eventSource = new EventSource("/stream_pedidos_listos");
+    eventSource.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        if (data.mesa == {{ mesa }}) {
+            alert(`Pedido listo para la mesa ${data.mesa}`);
+        }
+    };
+</script>
+{% endblock %}

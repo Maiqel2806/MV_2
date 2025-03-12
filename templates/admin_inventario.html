@@ -1,157 +1,115 @@
 {% extends "base_admin.html" %}
+
 {% block content %}
 <div class="container">
-    <h2 class="mb-4"><i class="fas fa-boxes me-2"></i> Inventario</h2>
-    
-    <!-- Formulario para Ingreso de Mercadería -->
-    <div class="card mb-4">
-        <div class="card-header bg-info text-white">
-            <i class="fas fa-plus-circle me-2"></i>Ingreso de Mercadería
-        </div>
-        <div class="card-body">
-            <form method="POST" action="{{ url_for('admin_inventario') }}">
-                <input type="hidden" name="guardar" value="1">
-                <div class="row g-3 align-items-center">
-                    <div class="col-md-3">
-                        <label for="producto" class="form-label">Producto:</label>
-                        <input type="text" class="form-control" id="producto" name="producto" required>
-                    </div>
-                    <div class="col-md-2">
-                        <label for="cantidad" class="form-label">Cantidad:</label>
-                        <input type="number" class="form-control" id="cantidad" name="cantidad" required min="1">
-                    </div>
-                    <div class="col-md-3">
-                        <label for="costo_unitario" class="form-label">Costo Unitario:</label>
-                        <input type="number" step="0.01" class="form-control" id="costo_unitario" name="costo_unitario" required>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="pvp" class="form-label">PVP (Venta):</label>
-                        <input type="number" step="0.01" class="form-control" id="pvp" name="pvp" required>
-                    </div>
-                    <div class="col-md-1 d-flex align-items-end">
-                        <button type="submit" class="btn btn-success w-100">
-                            <i class="fas fa-save"></i>
-                        </button>
-                    </div>
+    <h2 class="mb-4"><i class="fas fa-boxes me-2"></i>Gestión de Inventario</h2>
+
+    <!-- Mostrar mensajes flash -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">
+                    {{ message }}
                 </div>
-            </form>
-        </div>
-    </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
 
-    <!-- Tabla de Inventario -->
-    <div class="card">
-        <div class="card-header bg-primary text-white">
-            <i class="fas fa-clipboard-list me-2"></i>Listado de Inventario
-        </div>
-        <div class="card-body table-responsive">
-            <table class="table table-hover">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Producto</th>
-                        <th>Cantidad</th>
-                        <th>Costo Unitario</th>
-                        <th>PVP</th>
-                        <th>Ganancia</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in inventario %}
-                    <tr>
-                        <td>{{ item.Producto }}</td>
-                        <td>{{ item.Cantidad }}</td>
-                        <td>${{ "%.2f"|format(item.Costo_Unitario) }}</td>
-                        <td>${{ "%.2f"|format(item.PVP) }}</td>
-                        <td>${{ "%.2f"|format(item.Ganancia) }}</td>
-                        <td>
-                            <!-- Botón para editar -->
-                            <button class="btn btn-sm btn-warning me-2" 
-                                    data-toggle="modal" 
-                                    data-target="#editarModal"
-                                    data-indice="{{ item.IndiceReal }}"
-                                    data-producto="{{ item.Producto }}"
-                                    data-cantidad="{{ item.Cantidad }}"
-                                    data-costo_unitario="{{ item.Costo_Unitario }}"
-                                    data-pvp="{{ item.PVP }}">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <!-- Form eliminar -->
-                            <form method="POST" action="{{ url_for('admin_inventario') }}" class="d-inline">
-                                <input type="hidden" name="eliminar" value="1">
-                                <input type="hidden" name="indice" value="{{ item.IndiceReal }}">
-                                <button type="submit" class="btn btn-sm btn-danger">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="6" class="text-center text-muted">No hay productos en inventario</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        <div class="mt-4">
-            <a href="/admin/panel" class="btn btn-secondary">Volver</a>
-        </div>
-    </div>
-</div>
-
-<!-- Modal para Editar Producto -->
-<div class="modal fade" id="editarModal">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Editar Producto</h5>
-                <button type="button" class="close" data-dismiss="modal">&times;</button>
+    <!-- Formulario para agregar/editar producto -->
+    <form method="POST" action="{{ url_for('admin_inventario') }}">
+        <input type="hidden" name="indice" id="indice" value="">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <input type="text" class="form-control" name="producto" id="producto" placeholder="Producto" required>
             </div>
-            <form method="POST" action="{{ url_for('admin_inventario') }}">
-                <input type="hidden" name="editar" value="1">
-                <input type="hidden" name="indice" id="editarIndice">
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label>Producto:</label>
-                        <input type="text" class="form-control" name="producto" id="editarProducto" readonly required>
-                    </div>
-                    <div class="form-group">
-                        <label>Cantidad:</label>
-                        <input type="number" class="form-control" name="cantidad" id="editarCantidad" required min="1">
-                    </div>
-                    <div class="form-group">
-                        <label>Costo Unitario:</label>
-                        <input type="number" step="0.01" class="form-control" name="costo_unitario" id="editarCostoUnitario" required>
-                    </div>
-                    <div class="form-group">
-                        <label>PVP:</label>
-                        <input type="number" step="0.01" class="form-control" name="pvp" id="editarPVP" required>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Guardar</button>
-                </div>
-            </form>
+            <div class="col-md-2">
+                <input type="number" class="form-control" name="cantidad" id="cantidad" placeholder="Cantidad" min="0" required>
+            </div>
+            <div class="col-md-2">
+                <input type="number" step="0.01" class="form-control" name="costo_unitario" id="costo_unitario" placeholder="Costo Unitario" min="0" required>
+            </div>
+            <div class="col-md-2">
+                <input type="number" step="0.01" class="form-control" name="pvp" id="pvp" placeholder="PVP" min="0" required>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select" name="categoria" id="categoria" required>
+                    <option value="" disabled selected>Seleccione categoría</option>
+                    <option value="Comida">Comida</option>
+                    <option value="Bebida">Bebida</option>
+                    <option value="Otros">Otros</option>
+                </select>
+            </div>
+            <div class="col-md-1">
+                <button type="submit" class="btn btn-primary w-100" name="guardar">
+                    <i class="fas fa-save me-2"></i>Guardar
+                </button>
+            </div>
         </div>
+    </form>
+
+    <!-- Tabla de inventario -->
+    <div class="mt-4">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>Cantidad</th>
+                    <th>Costo Unitario</th>
+                    <th>PVP</th>
+                    <th>Ganancia</th>
+                    <th>Categoría</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for producto in inventario %}
+                <tr>
+                    <td>{{ producto.Producto }}</td>
+                    <td>{{ producto.Cantidad }}</td>
+                    <td>${{ producto.Costo_Unitario }}</td>
+                    <td>${{ producto.PVP }}</td>
+                    <td>${{ producto.Ganancia }}</td>
+                    <td>{{ producto.Categoría }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning" 
+                                onclick="editarProducto(
+                                    '{{ loop.index0 }}', 
+                                    '{{ producto.Producto }}', 
+                                    '{{ producto.Cantidad }}', 
+                                    '{{ producto.Costo_Unitario }}', 
+                                    '{{ producto.PVP }}', 
+                                    '{{ producto.Categoría }}'
+                                )">
+                            <i class="fas fa-edit"></i> Editar
+                        </button>
+                        <form method="POST" action="{{ url_for('admin_inventario') }}" style="display: inline;">
+                            <input type="hidden" name="indice" value="{{ loop.index0 }}">
+                            <button type="submit" class="btn btn-sm btn-danger" name="eliminar">
+                                <i class="fas fa-trash"></i> Eliminar
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 
+<!-- Script para cargar datos en el formulario al editar -->
 <script>
-    $('#editarModal').on('show.bs.modal', function (event) {
-        var button = $(event.relatedTarget);
-        var indice = button.data('indice');
-        var producto = button.data('producto');
-        var cantidad = button.data('cantidad');
-        var costo_unitario = button.data('costo_unitario');
-        var pvp = button.data('pvp');
-
-        var modal = $(this);
-        modal.find('#editarIndice').val(indice);
-        modal.find('#editarProducto').val(producto);
-        modal.find('#editarCantidad').val(cantidad);
-        modal.find('#editarCostoUnitario').val(costo_unitario);
-        modal.find('#editarPVP').val(pvp);
-    });
+    function editarProducto(indice, producto, cantidad, costo_unitario, pvp, categoria) {
+        document.getElementById("indice").value = indice;
+        document.getElementById("producto").value = producto;
+        document.getElementById("cantidad").value = cantidad;
+        document.getElementById("costo_unitario").value = costo_unitario;
+        document.getElementById("pvp").value = pvp;
+        document.getElementById("categoria").value = categoria;
+    }
 </script>
+
+<div class="mt-4">
+    <a href="/admin/panel" class="btn btn-secondary">Volver</a>
+</div>
+
 {% endblock %}

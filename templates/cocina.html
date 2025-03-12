@@ -3,26 +3,68 @@
 {% block content %}
 <div class="container">
     <h1 class="mb-4">Pedidos en Cocina</h1>
-    
-    <div class="list-group">
+
+    <!-- Mensajes de éxito o error -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Lista de pedidos -->
+    <div id="lista-pedidos" class="list-group">
         {% for pedido in pedidos %}
             <div class="list-group-item">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h5>{{ pedido.Producto }} (x{{ pedido.Cantidad }})</h5>
-                        <p class="mb-0">Cliente: {{ pedido.Cédula }}</p>
+                        <p class="mb-0">Mesa: {{ pedido.Mesa }}</p>
+                        <p class="mb-0">Hora del pedido: {{ pedido.Fecha_Hora }}</p>
                     </div>
-                    <a href="{{ url_for('completar', index=loop.index0) }}" 
-                       class="btn btn-success btn-sm">
-                        Marcar como listo
-                    </a>
+                    <form method="POST" action="{{ url_for('completar_pedido', pedido_id=loop.index0) }}" style="display: inline;">
+                        <button type="submit" class="btn btn-success btn-sm">
+                            Marcar como listo
+                        </button>
+                    </form>
                 </div>
+            </div>
+        {% else %}
+            <div class="list-group-item">
+                <p class="mb-0">No hay pedidos pendientes.</p>
             </div>
         {% endfor %}
     </div>
     
+    <!-- Botón para volver -->
     <a href="/caja/login" class="btn btn-secondary mt-3">
         <i class="fas fa-arrow-left"></i> Volver
     </a>
 </div>
+
+<!-- Script para actualizar la lista de pedidos en tiempo real -->
+<script>
+    // Función para actualizar la lista de pedidos
+    function actualizarPedidos() {
+        fetch("/cocina")
+            .then(response => response.text())
+            .then(data => {
+                // Extraer solo la lista de pedidos del HTML recibido
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(data, "text/html");
+                const nuevaLista = doc.getElementById("lista-pedidos").innerHTML;
+
+                // Actualizar la lista de pedidos en la página
+                document.getElementById("lista-pedidos").innerHTML = nuevaLista;
+            })
+            .catch(error => console.error("Error al actualizar pedidos:", error));
+    }
+
+    // Actualizar la lista cada 20ms
+    setInterval(actualizarPedidos, 20);
+</script>
 {% endblock %}
