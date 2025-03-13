@@ -13,7 +13,6 @@ import pandas as pd
 import time
 import json
 from flask import jsonify
-import portalocker
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)  # Clave secreta para producción
@@ -65,24 +64,6 @@ if not os.path.exists(EXCEL_MESAS):
         {"id": 10, "numero": 10, "nombre_cliente": ""}
     ]
     pd.DataFrame(mesas_iniciales).to_excel(EXCEL_MESAS, index=False)
-
-# Configuración de archivos
-EXCEL_MESAS = 'data/mesas.xlsx'
-EXCEL_CONSUMOS = 'data/consumos.xlsx'
-
-def leer_excel_con_bloqueo(archivo):
-    with open(archivo, 'rb') as f:
-        portalocker.lock(f, portalocker.LOCK_SH)
-        df = pd.read_excel(f)
-        portalocker.unlock(f)
-    return df
-
-def guardar_excel_con_bloqueo(df, archivo):
-    with open(archivo, 'wb') as f:
-        fcntl.flock(f, fcntl.LOCK_EX)  # Bloqueo exclusivo para escritura
-        df.to_excel(f, index=False)
-        fcntl.flock(f, fcntl.LOCK_UN)
-
 
 # Función para cargar mesas
 def cargar_mesas():
@@ -498,48 +479,81 @@ def mesas():
     mesas = cargar_mesas()
     return render_template("clientes.html", mesas=mesas)
 
-# Ruta actualizar mesa (corregida)
 @app.route("/caja/actualizar_mesa/<int:mesa_id>", methods=["POST"])
+@login_caja_required
 def actualizar_mesa(mesa_id):
-    try:
-        df = leer_excel_con_bloqueo(EXCEL_MESAS)
-        df.loc[df["id"] == mesa_id, "nombre_cliente"] = request.form["nombre_cliente"]
-        guardar_excel_con_bloqueo(df, EXCEL_MESAS)
-        flash("Nombre actualizado correctamente", "success")
-    except Exception as e:
-        flash(f"Error: {str(e)}", "danger")
+    nombre_cliente = request.form.get("nombre_cliente")
+    
+    df_mesas = pd.read_excel(EXCEL_MESAS)
+    df_mesas.loc[df_mesas["id"] == mesa_id, "nombre_cliente"] = nombre_cliente
+    df_mesas.to_excel(EXCEL_MESAS, index=False)
+    
+    flash("Nombre del cliente actualizado correctamente", "success")
     return redirect(url_for('mesas'))
 
 # ================= RUTA PARA REGISTRAR CONSUMOS =================
-# Ruta registrar consumo (optimizada)
-@app.route("/caja/registrar_consumo/<int:mesa>", methods=["POST"])
+@app.route("/caja/registrar_consumo/<int:mesa>", methods=["GET", "POST"])
+@login_caja_required
 def registrar_consumo(mesa):
-    try:
-        # Obtener datos del formulario
+    # Cargar los productos desde el archivo Excel
+    df_productos = pd.read_excel(EXCEL_PRODUCTOS)
+    productos = df_productos.to_dict("records")
+
+    if request.method == "POST":
+        # Obtener los datos del formulario
         producto_id = int(request.form.get("producto"))
         cantidad = int(request.form.get("cantidad", 0))
-        
-        # Leer productos
-        df_productos = leer_excel_con_bloqueo('data/productos.xlsx')
-        producto = df_productos.iloc[producto_id]
-        
-        # Leer y actualizar consumos
-        df_consumos = leer_excel_con_bloqueo(EXCEL_CONSUMOS)
-        nuevo_consumo = {
-            "Mesa": mesa,
-            "Producto": producto["Nombre"],
-            "Cantidad": cantidad,
-            "Precio": producto["Precio"],
-            "Total": cantidad * producto["Precio"],
-            "Fecha_Hora": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        }
-        df_consumos = pd.concat([df_consumos, pd.DataFrame([nuevo_consumo])], ignore_index=True)
-        guardar_excel_con_bloqueo(df_consumos, EXCEL_CONSUMOS)
-        
-        flash("Consumo registrado exitosamente", "success")
-    except Exception as e:
-        flash(f"Error al registrar: {str(e)}", "danger")
-    return redirect(url_for('registrar_consumo', mesa=mesa))
+
+        # Obtener el producto seleccionado
+        producto_seleccionado = df_productos.iloc[producto_id]
+        categoria = producto_seleccionado["Categoría"]  # Asegurar que se guarde la categoría
+        nombre_producto = producto_seleccionado["Nombre"]
+        precio_unitario = producto_seleccionado["Precio"]
+        total = precio_unitario * cantidad
+
+        # Registrar el consumo en el archivo Excel
+        fecha_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        df_consumos = pd.read_excel(EXCEL_CONSUMOS)
+        if "Categoría" not in df_consumos.columns:
+            df_consumos["Categoría"] = "Comida"  # O actualizar con los valores reales
+            df_consumos.to_excel(EXCEL_CONSUMOS, index=False)
+
+        # Verificar si el producto ya está registrado para esta mesa
+        consumo_existente = df_consumos[(df_consumos["Mesa"] == mesa) & (df_consumos["Producto"] == nombre_producto)]
+        if not consumo_existente.empty:
+            # Si el producto ya está registrado, sumar la cantidad
+            indice = consumo_existente.index[0]
+            df_consumos.at[indice, "Cantidad"] += cantidad
+            df_consumos.at[indice, "Total"] += total
+        else:
+            # Si el producto no está registrado, agregar un nuevo consumo
+            nuevo_consumo = pd.DataFrame([{
+                "Mesa": mesa,
+                "Producto": nombre_producto,
+                "Cantidad": cantidad,
+                "Precio": precio_unitario,
+                "Categoría": categoria,
+                "Fecha_Hora": fecha_hora,
+                "Estado": "Pendiente",
+                "Total": cantidad * precio_unitario  # Calcular el total
+            }])
+            df_consumos = pd.concat([df_consumos, nuevo_consumo], ignore_index=True)
+
+        df_consumos.to_excel(EXCEL_CONSUMOS, index=False)
+        return redirect(url_for('registrar_consumo', mesa=mesa))
+
+    # Obtener los consumos registrados para esta mesa
+    df_consumos = pd.read_excel(ARCHIVOS['consumos'])
+    consumos_mesa = df_consumos[df_consumos["Mesa"] == mesa].to_dict("records")
+
+    # Calcular total de manera segura
+    total_pagar = df_consumos[df_consumos["Mesa"] == mesa]["Total"].sum()
+    
+    return render_template("registrar_consumo.html",
+                         mesa=mesa,
+                         productos=productos,
+                         consumos=consumos_mesa,
+                         total_pagar=total_pagar)
 
 # ================= RUTA PARA PROCESAR EL PAGO =================
 @app.route("/caja/procesar_pago/<int:mesa>", methods=["POST"])
@@ -718,14 +732,6 @@ def despachar_pedido(pedido_id):
         df_consumos = df_consumos.drop(pedido_id)
         df_consumos.to_excel(ARCHIVOS['consumos'], index=False)
         
-        # Enviar notificación a la mesa correspondiente
-        global notificaciones
-        notificaciones.append({
-            'mesa': pedido['Mesa'],
-            'mensaje': f"Pedido listo para Mesa {pedido['Mesa']}",
-            'timestamp': time.time()
-        })
-        
         return jsonify({
             'success': True,
             'mesa': pedido['Mesa'],
@@ -733,23 +739,6 @@ def despachar_pedido(pedido_id):
         })
     except Exception as e:
         return jsonify(success=False, error=str(e)), 500
-    
-notificaciones = []
-    
-# Añadir esta ruta para SSE
-@app.route('/stream_estado/<int:mesa_numero>')
-def stream_estado(mesa_numero):
-    def event_stream():
-        last_id = 0
-        while True:
-            # Verificar si hay nuevas notificaciones (podrías usar una base de datos en producción)
-            if 'notificaciones' in globals() and len(notificaciones) > last_id:
-                for msg in notificaciones[last_id:]:
-                    if msg['mesa'] == mesa_numero:
-                        yield f"data: {json.dumps(msg)}\n\n"
-                last_id = len(notificaciones)
-            time.sleep(1)
-    return Response(event_stream(), mimetype="text/event-stream")
 
 # Ruta para detalles del pedido
 @app.route('/detalles_pedido/<int:pedido_id>')

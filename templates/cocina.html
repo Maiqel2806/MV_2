@@ -38,7 +38,7 @@
     <div id="lista-pedidos" class="list-group">
         {% for pedido in pedidos %}
             <div class="list-group-item pedido-item 
-                        {{ 'pedido-urgente' if pedido.tiempo_espera > 5 }} 
+                        {{ 'pedido-urgente' if pedido.tiempo_espera > 2 }} 
                         {{ 'pedido-comida' if pedido.categoria == 'Comida' }} 
                         {{ 'pedido-bebida' if pedido.categoria == 'Bebida' }}" 
                  data-pedido-id="{{ pedido.id }}" 
@@ -55,7 +55,7 @@
                     <div class="btn-group">
                         <button class="btn btn-success btn-despachar" 
                                 onclick="despacharPedido('{{ pedido.id }}')">
-                            <i class="fas fa-check"></i> DESPACHADO
+                            <i class="fas fa-check"></i> MARCAR COMO DESPACHADO
                         </button>
                         <button class="btn btn-outline-secondary" 
                                 onclick="verDetalles('{{ pedido.id }}')"
@@ -97,7 +97,7 @@
 <style>
     .pedido-urgente {
         background-color: #ffe6e6 !important;
-        border-left: 4px solid #ff4444 !important;
+        border-left: 4px solid #ff4444 !important; /* Color rojo brillante */
         animation: pulse 1.5s infinite;
     }
     
@@ -111,7 +111,7 @@
     
     @keyframes pulse {
         0% { transform: scale(1); }
-        50% { transform: scale(1.02); }
+        50% { transform: scale(1.05); }
         100% { transform: scale(1); }
     }
     
@@ -164,8 +164,6 @@
 
     function actualizarTiempos() {
         const ahora = Math.floor(Date.now() / 1000);
-        let total = 0;
-        let count = 0;
         
         document.querySelectorAll('.pedido-item').forEach(item => {
             const timestamp = parseInt(item.dataset.timestamp);
@@ -174,21 +172,22 @@
             
             tiempoElem.textContent = `${minutos} min`;
             
-            if(minutos >= 5 && !item.classList.contains('pedido-urgente')) {
-                item.classList.add('pedido-urgente');
-                if(sonidoActivo) alertSound.play();
-            }
+            // Establece el umbral en 5 minutos (ajustable)
+            const umbralUrgente = 2;
             
-            if(!item.classList.contains('pedido-urgente')) {
-                total += minutos;
-                count++;
+            if(minutos >= umbralUrgente) {
+                // Si pasa el umbral, se considera urgente
+                item.classList.add('pedido-urgente');
+                if(sonidoActivo && !item.classList.contains('notificado')) {
+                    alertSound.play();
+                    item.classList.add('notificado');
+                }
+            } else {
+                // Si no pasa el umbral, se quita la clase de urgente
+                item.classList.remove('pedido-urgente');
+                item.classList.remove('notificado');
             }
         });
-        
-        if(count > 0) {
-            document.getElementById('tiempo-promedio').textContent = 
-                Math.round(total / count) + ' min';
-        }
     }
 
     function toggleSound() {
@@ -257,10 +256,8 @@
             .then(data => {
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(data, "text/html");
-                document.getElementById("lista-pedidos").innerHTML = 
-                    doc.getElementById("lista-pedidos").innerHTML;
-                initTooltips();
+                document.getElementById("lista-pedidos").innerHTML = doc.getElementById("lista-pedidos").innerHTML;
             });
-    }, 100);
+    }, 10000); // Actualizar cada minuto
 </script>
 {% endblock %}
