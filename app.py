@@ -12,6 +12,8 @@ import re
 import pandas as pd
 import time
 import json
+from flask import jsonify
+import portalocker
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)  # Clave secreta para producción
@@ -28,6 +30,13 @@ app.config['MAIL_DEFAULT_SENDER'] = ('Soporte Admin', 'tu_correo@gmail.com')
 mail = Mail(app)
 
 # ================= CONFIGURACIÓN DE ARCHIVOS =================
+
+# Configuración de archivos
+ARCHIVOS = {
+    'consumos': 'data/consumos.xlsx',
+    'historial': 'data/historial_pedidos.xlsx'
+}
+
 DATA_DIR = "data"
 REPORTES_DIR = "reportes"
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -57,6 +66,24 @@ if not os.path.exists(EXCEL_MESAS):
     ]
     pd.DataFrame(mesas_iniciales).to_excel(EXCEL_MESAS, index=False)
 
+# Configuración de archivos
+EXCEL_MESAS = 'data/mesas.xlsx'
+EXCEL_CONSUMOS = 'data/consumos.xlsx'
+
+def leer_excel_con_bloqueo(archivo):
+    with open(archivo, 'rb') as f:
+        portalocker.lock(f, portalocker.LOCK_SH)
+        df = pd.read_excel(f)
+        portalocker.unlock(f)
+    return df
+
+def guardar_excel_con_bloqueo(df, archivo):
+    with open(archivo, 'wb') as f:
+        fcntl.flock(f, fcntl.LOCK_EX)  # Bloqueo exclusivo para escritura
+        df.to_excel(f, index=False)
+        fcntl.flock(f, fcntl.LOCK_UN)
+
+
 # Función para cargar mesas
 def cargar_mesas():
     return pd.read_excel(EXCEL_MESAS).to_dict("records")
@@ -81,6 +108,27 @@ if not os.path.exists(VENTAS_ENTRADAS):
     pd.DataFrame(columns=["Fecha_Venta", "Producto", "Cantidad", "Total_Venta"]).to_excel(VENTAS_ENTRADAS, index=False)
 
 def inicializar_archivos():
+
+    columnas_consumos = [
+            "Mesa", 
+            "Producto", 
+            "Cantidad", 
+            "Precio", 
+            "Categoría", 
+            "Fecha_Hora", 
+            "Estado", 
+            "Total"  # Añadir esta columna
+        ]
+        
+    if not os.path.exists(ARCHIVOS['consumos']):
+            pd.DataFrame(columns=columnas_consumos).to_excel(ARCHIVOS['consumos'], index=False)
+    else:
+        # Verificar y añadir columna Total si falta
+        df = pd.read_excel(ARCHIVOS['consumos'])
+        if 'Total' not in df.columns:
+            df['Total'] = 0
+            df.to_excel(ARCHIVOS['consumos'], index=False)
+
     if not os.path.exists(EXCEL_PRODUCTOS):
         # Crear con columnas correctas
         pd.DataFrame(columns=["Nombre", "Precio", "Categoría", "Existencias"]).to_excel(EXCEL_PRODUCTOS, index=False)
@@ -166,7 +214,7 @@ def inicializar_archivos():
     
     # Consumos
     if not os.path.exists(EXCEL_CONSUMOS):
-        df = pd.DataFrame(columns=["Mesa", "Producto", "Cantidad", "Precio", "Fecha_Hora"])
+        df = pd.DataFrame(columns=["Mesa", "Producto", "Cantidad", "Precio", "Fecha_Hora", "Total"])
         df.to_excel(EXCEL_CONSUMOS, index=False)
 
 inicializar_archivos()
@@ -329,6 +377,18 @@ def admin_productos():
                          productos=df.to_dict("records"), 
                          enumerate=enumerate)
 
+# Añadir esto temporalmente en tu código para actualizar archivos existentes
+def corregir_consumos():
+    try:
+        df = pd.read_excel(ARCHIVOS['consumos'])
+        if 'Total' not in df.columns:
+            df['Total'] = df['Cantidad'] * df['Precio']
+            df.to_excel(ARCHIVOS['consumos'], index=False)
+    except Exception as e:
+        print(f"Error al corregir consumos: {str(e)}")
+
+corregir_consumos()
+
 @app.route("/admin/clientes", methods=["GET", "POST"])
 @login_admin_required
 def admin_clientes():
@@ -438,78 +498,48 @@ def mesas():
     mesas = cargar_mesas()
     return render_template("clientes.html", mesas=mesas)
 
+# Ruta actualizar mesa (corregida)
 @app.route("/caja/actualizar_mesa/<int:mesa_id>", methods=["POST"])
-@login_caja_required
 def actualizar_mesa(mesa_id):
-    nombre_cliente = request.form.get("nombre_cliente")
-    
-    df_mesas = pd.read_excel(EXCEL_MESAS)
-    df_mesas.loc[df_mesas["id"] == mesa_id, "nombre_cliente"] = nombre_cliente
-    df_mesas.to_excel(EXCEL_MESAS, index=False)
-    
-    flash("Nombre del cliente actualizado correctamente", "success")
+    try:
+        df = leer_excel_con_bloqueo(EXCEL_MESAS)
+        df.loc[df["id"] == mesa_id, "nombre_cliente"] = request.form["nombre_cliente"]
+        guardar_excel_con_bloqueo(df, EXCEL_MESAS)
+        flash("Nombre actualizado correctamente", "success")
+    except Exception as e:
+        flash(f"Error: {str(e)}", "danger")
     return redirect(url_for('mesas'))
 
 # ================= RUTA PARA REGISTRAR CONSUMOS =================
-@app.route("/caja/registrar_consumo/<int:mesa>", methods=["GET", "POST"])
-@login_caja_required
+# Ruta registrar consumo (optimizada)
+@app.route("/caja/registrar_consumo/<int:mesa>", methods=["POST"])
 def registrar_consumo(mesa):
-    # Cargar los productos desde el archivo Excel
-    df_productos = pd.read_excel(EXCEL_PRODUCTOS)
-    productos = df_productos.to_dict("records")
-
-    if request.method == "POST":
-        # Obtener los datos del formulario
+    try:
+        # Obtener datos del formulario
         producto_id = int(request.form.get("producto"))
         cantidad = int(request.form.get("cantidad", 0))
-
-        # Obtener el producto seleccionado
-        producto_seleccionado = df_productos.iloc[producto_id]
-        nombre_producto = producto_seleccionado["Nombre"]
-        precio_unitario = producto_seleccionado["Precio"]
-        categoria = producto_seleccionado["Categoría"]
-        total = precio_unitario * cantidad
-
-        # Registrar el consumo en el archivo Excel
-        fecha_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        df_consumos = pd.read_excel(EXCEL_CONSUMOS)
-
-        # Verificar si el producto ya está registrado para esta mesa
-        consumo_existente = df_consumos[(df_consumos["Mesa"] == mesa) & (df_consumos["Producto"] == nombre_producto)]
-        if not consumo_existente.empty:
-            # Si el producto ya está registrado, sumar la cantidad
-            indice = consumo_existente.index[0]
-            df_consumos.at[indice, "Cantidad"] += cantidad
-            df_consumos.at[indice, "Total"] += total
-        else:
-            # Si el producto no está registrado, agregar un nuevo consumo
-            nuevo_consumo = pd.DataFrame([{
-                "Mesa": mesa,
-                "Producto": nombre_producto,
-                "Cantidad": cantidad,
-                "Precio": precio_unitario,
-                "Total": total,
-                "Fecha_Hora": fecha_hora,
-                "Estado": "Pendiente" if categoria == "Comida" else "Pagado",  # Solo comida va a Cocina
-                "Categoría": categoria
-            }])
-            df_consumos = pd.concat([df_consumos, nuevo_consumo], ignore_index=True)
-
-        df_consumos.to_excel(EXCEL_CONSUMOS, index=False)
-        return redirect(url_for('registrar_consumo', mesa=mesa))
-
-    # Obtener los consumos registrados para esta mesa
-    df_consumos = pd.read_excel(EXCEL_CONSUMOS)
-    consumos_mesa = df_consumos[df_consumos["Mesa"] == mesa].to_dict("records")
-
-    # Calcular el total a pagar
-    total_pagar = sum(consumo["Total"] for consumo in consumos_mesa)
-
-    return render_template("registrar_consumo.html", 
-                           mesa=mesa, 
-                           productos=productos, 
-                           consumos=consumos_mesa, 
-                           total_pagar=total_pagar)
+        
+        # Leer productos
+        df_productos = leer_excel_con_bloqueo('data/productos.xlsx')
+        producto = df_productos.iloc[producto_id]
+        
+        # Leer y actualizar consumos
+        df_consumos = leer_excel_con_bloqueo(EXCEL_CONSUMOS)
+        nuevo_consumo = {
+            "Mesa": mesa,
+            "Producto": producto["Nombre"],
+            "Cantidad": cantidad,
+            "Precio": producto["Precio"],
+            "Total": cantidad * producto["Precio"],
+            "Fecha_Hora": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        df_consumos = pd.concat([df_consumos, pd.DataFrame([nuevo_consumo])], ignore_index=True)
+        guardar_excel_con_bloqueo(df_consumos, EXCEL_CONSUMOS)
+        
+        flash("Consumo registrado exitosamente", "success")
+    except Exception as e:
+        flash(f"Error al registrar: {str(e)}", "danger")
+    return redirect(url_for('registrar_consumo', mesa=mesa))
 
 # ================= RUTA PARA PROCESAR EL PAGO =================
 @app.route("/caja/procesar_pago/<int:mesa>", methods=["POST"])
@@ -661,11 +691,129 @@ def cerrar_caja():
                          resumen_general=resumen_general)
 
 # ================= RUTA PARA COCINA =================
+
+# Ruta para despachar pedidos
+@app.route('/despachar_pedido/<int:pedido_id>', methods=['DELETE'])
+def despachar_pedido(pedido_id):
+    try:
+        df_consumos = pd.read_excel(ARCHIVOS['consumos'])
+        pedido = df_consumos.iloc[pedido_id].to_dict()
+        
+        # Registrar en historial
+        df_historial = pd.read_excel(ARCHIVOS['historial']) if os.path.exists(ARCHIVOS['historial']) else pd.DataFrame()
+        
+        nuevo_registro = {
+            "Mesa": pedido['Mesa'],
+            "Producto": pedido['Producto'],
+            "Cantidad": pedido['Cantidad'],
+            "Fecha_Hora": pedido['Fecha_Hora'],
+            "Fecha_Despacho": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "Tiempo_Preparacion": (datetime.now() - datetime.strptime(pedido['Fecha_Hora'], "%Y-%m-%d %H:%M:%S")).seconds // 60
+        }
+        
+        df_historial = pd.concat([df_historial, pd.DataFrame([nuevo_registro])], ignore_index=True)
+        df_historial.to_excel(ARCHIVOS['historial'], index=False)
+        
+        # Eliminar de consumos
+        df_consumos = df_consumos.drop(pedido_id)
+        df_consumos.to_excel(ARCHIVOS['consumos'], index=False)
+        
+        # Enviar notificación a la mesa correspondiente
+        global notificaciones
+        notificaciones.append({
+            'mesa': pedido['Mesa'],
+            'mensaje': f"Pedido listo para Mesa {pedido['Mesa']}",
+            'timestamp': time.time()
+        })
+        
+        return jsonify({
+            'success': True,
+            'mesa': pedido['Mesa'],
+            'producto': pedido['Producto']
+        })
+    except Exception as e:
+        return jsonify(success=False, error=str(e)), 500
+    
+notificaciones = []
+    
+# Añadir esta ruta para SSE
+@app.route('/stream_estado/<int:mesa_numero>')
+def stream_estado(mesa_numero):
+    def event_stream():
+        last_id = 0
+        while True:
+            # Verificar si hay nuevas notificaciones (podrías usar una base de datos en producción)
+            if 'notificaciones' in globals() and len(notificaciones) > last_id:
+                for msg in notificaciones[last_id:]:
+                    if msg['mesa'] == mesa_numero:
+                        yield f"data: {json.dumps(msg)}\n\n"
+                last_id = len(notificaciones)
+            time.sleep(1)
+    return Response(event_stream(), mimetype="text/event-stream")
+
+# Ruta para detalles del pedido
+@app.route('/detalles_pedido/<int:pedido_id>')
+def detalles_pedido(pedido_id):
+    try:
+        df = pd.read_excel(ARCHIVOS['consumos'])
+        pedido = df.iloc[pedido_id].to_dict()
+        return f"""
+            <p><strong>Producto:</strong> {pedido['Producto']}</p>
+            <p><strong>Cantidad:</strong> {pedido['Cantidad']}</p>
+            <p><strong>Mesa:</strong> {pedido['Mesa']}</p>
+            <p><strong>Hora Pedido:</strong> {pedido['Fecha_Hora']}</p>
+            <p><strong>Notas:</strong> {pedido.get('Notas', 'N/A')}</p>
+        """
+    except:
+        return "Error al cargar detalles"
+    
+# Ruta principal de cocina
 @app.route("/cocina")
 def cocina():
-    df_consumos = pd.read_excel(EXCEL_CONSUMOS).reset_index(drop=True)  # Reiniciar índice
-    pedidos = df_consumos[(df_consumos["Categoría"] == "Comida") & (df_consumos["Estado"] == "Pendiente")].to_dict("records")
-    return render_template("cocina.html", pedidos=pedidos)
+    try:
+        # Cargar y filtrar consumos
+        df_consumos = pd.read_excel(ARCHIVOS['consumos'])
+        pedidos_comida = df_consumos[
+            (df_consumos["Categoría"] == "Comida") & 
+            (df_consumos["Estado"] == "Pendiente")
+        ].reset_index(drop=True)
+
+        # Procesar tiempos y preparar datos para template
+        ahora = datetime.now()
+        pedidos_procesados = []
+        
+        for idx, row in pedidos_comida.iterrows():
+            fecha_pedido = datetime.strptime(row['Fecha_Hora'], "%Y-%m-%d %H:%M:%S")
+            tiempo_espera = (ahora - fecha_pedido).seconds // 60  # En minutos
+            
+            pedidos_procesados.append({
+                'id': idx,
+                'producto': row['Producto'],
+                'cantidad': row['Cantidad'],
+                'mesa': row['Mesa'],
+                'fecha_hora': row['Fecha_Hora'],
+                'tiempo_espera': tiempo_espera,
+                'timestamp': int(fecha_pedido.timestamp()),
+                'categoria': row['Categoría']
+            })
+
+        # Calcular tiempo promedio de preparación
+        promedio_preparacion = 0
+        if os.path.exists(ARCHIVOS['historial']):
+            df_historial = pd.read_excel(ARCHIVOS['historial'])
+            if not df_historial.empty and 'Tiempo_Preparacion' in df_historial.columns:
+                promedio_preparacion = df_historial['Tiempo_Preparacion'].mean().round(1)
+
+        return render_template(
+            "cocina.html",
+            pedidos=pedidos_procesados,
+            promedio_preparacion=promedio_preparacion,
+            sonido_activo=True
+        )
+        
+    except Exception as e:
+        print(f"Error en cocina: {str(e)}")
+        return render_template("error.html", mensaje="Error al cargar los pedidos de cocina")
 
 # ================= RUTA PARA MARCAR PEDIDO COMO LISTO =================
 @app.route("/cocina/completar_pedido/<int:pedido_id>", methods=["POST"])

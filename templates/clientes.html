@@ -6,7 +6,6 @@
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('success')) {
             alert("Consumo registrado exitosamente");
-            // Limpiar parámetro de la URL
             window.history.replaceState({}, document.title, window.location.pathname);
         }
     };
@@ -15,28 +14,35 @@
 <div class="container">
     <h2 class="mb-4"><i class="fas fa-utensils me-2"></i>Gestión de Mesas</h2>
 
+    <!-- Sonido de notificación -->
+    <audio id="sonido-notificacion" src="/static/sounds/alert.mp3"></audio>
+
     <!-- Cuadrícula de Mesas -->
     <div class="row">
         {% for mesa in mesas %}
         <div class="col-md-3 mb-4">
-            <div class="card text-center bg-primary text-white">
-                <div class="card-header">
+            <div class="card text-center mesa-card" id="mesa-{{ mesa.numero }}" data-mesa="{{ mesa.numero }}">
+                <div class="card-header bg-primary text-white">
                     <h5>Mesa {{ mesa.numero }}</h5>
                 </div>
                 <div class="card-body">
                     <form method="POST" action="{{ url_for('actualizar_mesa', mesa_id=mesa.id) }}">
                         <div class="mb-3">
-                            <input type="text" class="form-control" name="nombre_cliente" value="{{ mesa.nombre_cliente }}" placeholder="Nombre del Cliente">
+                            <input type="text" class="form-control" name="nombre_cliente" 
+                                   value="{{ mesa.nombre_cliente }}" placeholder="Nombre del Cliente">
                         </div>
-                        <button type="submit" class="btn btn-light btn-sm">
+                        <button type="submit" class="btn btn-primary btn-sm">
                             <i class="fas fa-save"></i> Guardar
                         </button>
                     </form>
-                    <a href="{{ url_for('registrar_consumo', mesa=mesa.numero) }}" class="btn btn-light mt-2">
+                    <a href="{{ url_for('registrar_consumo', mesa=mesa.numero) }}" 
+                       class="btn btn-success mt-2">
                         <i class="fas fa-cash-register"></i> Registrar Consumo
                     </a>
                     <!-- Notificación de pedido listo -->
-                    <div id="notificacion-{{ mesa.numero }}" class="alert alert-success mt-2" style="display: none;">
+                    <div id="notificacion-{{ mesa.numero }}" 
+                         class="alert alert-success mt-2 animated bounceIn" 
+                         style="display: none;">
                         <i class="fas fa-check-circle"></i> ¡Pedido listo!
                     </div>
                 </div>
@@ -53,29 +59,80 @@
     </div>
 </div>
 
-<!-- Script para Server-Sent Events (SSE) -->
+<style>
+    .mesa-alerta {
+        animation: vibrar 0.5s ease-in-out infinite;
+        border: 2px solid #dc3545 !important;
+    }
+    
+    @keyframes vibrar {
+        0% { transform: translateX(0); }
+        25% { transform: translateX(3px); }
+        50% { transform: translateX(-3px); }
+        75% { transform: translateX(3px); }
+        100% { transform: translateX(0); }
+    }
+    
+    .animated {
+        animation-duration: 0.5s;
+    }
+    
+    .bounceIn {
+        animation-name: bounceIn;
+    }
+    
+    @keyframes bounceIn {
+        from { transform: scale(0); }
+        to { transform: scale(1); }
+    }
+</style>
+
 <script>
-    // Conexión SSE para cada mesa
+    // Configurar SSE para cada mesa
     {% for mesa in mesas %}
     (function(mesaNumber) {
         const eventSource = new EventSource(`/stream_estado/${mesaNumber}`);
-        
+        const notificacionElement = document.getElementById(`notificacion-${mesaNumber}`);
+        const mesaCard = document.getElementById(`mesa-${mesaNumber}`);
+        const sonido = document.getElementById('sonido-notificacion');
+
         eventSource.onmessage = function(e) {
             const data = JSON.parse(e.data);
-            const notificacion = document.getElementById(`notificacion-${mesaNumber}`);
-            if (notificacion) {
-                notificacion.style.display = "block";
+            if (data.mesa === mesaNumber) {
+                // Mostrar notificación
+                notificacionElement.style.display = "block";
+                sonido.play();
+                
+                // Animación de la mesa
+                mesaCard.classList.add('mesa-alerta');
                 setTimeout(() => {
-                    notificacion.style.display = "none";
+                    mesaCard.classList.remove('mesa-alerta');
+                }, 3000);
+
+                // Ocultar notificación después de 5 segundos
+                setTimeout(() => {
+                    notificacionElement.style.display = "none";
                 }, 5000);
             }
         };
 
         eventSource.onerror = function() {
-            console.error(`Error en SSE para mesa ${mesaNumber}`);
+            console.error(`Error en conexión SSE para mesa ${mesaNumber}`);
             eventSource.close();
         };
     })({{ mesa.numero }});
     {% endfor %}
 </script>
+
+<script>
+    // Mostrar spinner durante las operaciones
+    document.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', () => {
+            const spinner = document.createElement('div');
+            spinner.className = 'spinner-border text-primary';
+            form.querySelector('button').innerHTML = '';
+            form.querySelector('button').appendChild(spinner);
+        });
+    });
+    </script>
 {% endblock %}

@@ -3,34 +3,67 @@
 {% block content %}
 <div class="container">
     <h1 class="mb-4">Pedidos en Cocina</h1>
-
-    <!-- Mensajes de éxito o error -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    
+    <!-- Panel de control -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Estadísticas</h5>
+                    <p class="card-text">
+                        Tiempo promedio preparación: <span id="tiempo-promedio">{{ promedio_preparacion }} min</span>
+                    </p>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="toggleSound()">
+                        <i class="fas fa-volume-{{ 'up' if sonido_activo else 'mute' }}"></i> Sonido
+                    </button>
                 </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Filtros</h5>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-sm btn-outline-primary active" data-filter="all">Todos</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-filter="comida">Comida</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-filter="bebida">Bebida</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-filter="urgente">Urgentes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Lista de pedidos -->
     <div id="lista-pedidos" class="list-group">
         {% for pedido in pedidos %}
-            <div class="list-group-item">
+            <div class="list-group-item pedido-item 
+                        {{ 'pedido-urgente' if pedido.tiempo_espera > 5 }} 
+                        {{ 'pedido-comida' if pedido.categoria == 'Comida' }} 
+                        {{ 'pedido-bebida' if pedido.categoria == 'Bebida' }}" 
+                 data-pedido-id="{{ pedido.id }}" 
+                 data-timestamp="{{ pedido.timestamp }}"
+                 data-categoria="{{ pedido.categoria }}"
+                 data-mesa="{{ pedido.mesa }}">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h5>{{ pedido.Producto }} (x{{ pedido.Cantidad }})</h5>
-                        <p class="mb-0">Mesa: {{ pedido.Mesa }}</p>
-                        <p class="mb-0">Hora del pedido: {{ pedido.Fecha_Hora }}</p>
+                        <h5>{{ pedido.producto }} (x{{ pedido.cantidad }})</h5>
+                        <div class="badge bg-secondary">{{ pedido.categoria }}</div>
+                        <p class="mb-1">Mesa: {{ pedido.mesa }} | Hora: {{ pedido.fecha_hora }}</p>
+                        <p class="mb-0">Tiempo espera: <span class="tiempo-espera">{{ pedido.tiempo_espera }} min</span></p>
                     </div>
-                    <form method="POST" action="{{ url_for('completar_pedido', pedido_id=loop.index0) }}" style="display: inline;">
-                        <button type="submit" class="btn btn-success btn-sm">
-                            Marcar como listo
+                    <div class="btn-group">
+                        <button class="btn btn-success btn-despachar" 
+                                onclick="despacharPedido('{{ pedido.id }}')">
+                            <i class="fas fa-check"></i> DESPACHADO
                         </button>
-                    </form>
+                        <button class="btn btn-outline-secondary" 
+                                onclick="verDetalles('{{ pedido.id }}')"
+                                data-bs-toggle="tooltip" 
+                                title="Ver detalles">
+                            <i class="fas fa-info"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         {% else %}
@@ -39,32 +72,195 @@
             </div>
         {% endfor %}
     </div>
-    
+
     <!-- Botón para volver -->
     <a href="/caja/login" class="btn btn-secondary mt-3">
         <i class="fas fa-arrow-left"></i> Volver
     </a>
 </div>
 
-<!-- Script para actualizar la lista de pedidos en tiempo real -->
+<!-- Modal de detalles -->
+<div class="modal fade" id="detallesModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalles del Pedido</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="detalles-pedido">
+                Cargando...
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .pedido-urgente {
+        background-color: #ffe6e6 !important;
+        border-left: 4px solid #ff4444 !important;
+        animation: pulse 1.5s infinite;
+    }
+    
+    .pedido-comida {
+        border-left: 4px solid #4CAF50 !important;
+    }
+    
+    .pedido-bebida {
+        border-left: 4px solid #2196F3 !important;
+    }
+    
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.02); }
+        100% { transform: scale(1); }
+    }
+    
+    .pedido-despachado {
+        animation: despacharAnimation 2s forwards;
+    }
+    
+    @keyframes despacharAnimation {
+        0% { transform: translateX(0); opacity: 1; }
+        100% { transform: translateX(-100%); opacity: 0; }
+    }
+    
+    @keyframes vibrar {
+        0% { transform: translateX(0); }
+        25% { transform: translateX(5px); }
+        50% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+        100% { transform: translateX(0); }
+    }
+</style>
+
+<audio id="sonido-notificacion" src="/static/sounds/alert.mp3"></audio>
+
 <script>
-    // Función para actualizar la lista de pedidos
-    function actualizarPedidos() {
+    let sonidoActivo = true;
+    const alertSound = document.getElementById('sonido-notificacion');
+    
+    document.addEventListener('DOMContentLoaded', () => {
+        actualizarTiempos();
+        initFiltros();
+        initTooltips();
+    });
+
+    function initFiltros() {
+        document.querySelectorAll('[data-filter]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                const filter = btn.dataset.filter;
+                document.querySelectorAll('.pedido-item').forEach(item => {
+                    const show = filter === 'all' || 
+                                (filter === 'urgente' && item.classList.contains('pedido-urgente')) ||
+                                item.dataset.categoria === filter;
+                    item.style.display = show ? 'block' : 'none';
+                });
+            });
+        });
+    }
+
+    function actualizarTiempos() {
+        const ahora = Math.floor(Date.now() / 1000);
+        let total = 0;
+        let count = 0;
+        
+        document.querySelectorAll('.pedido-item').forEach(item => {
+            const timestamp = parseInt(item.dataset.timestamp);
+            const minutos = Math.floor((ahora - timestamp) / 60);
+            const tiempoElem = item.querySelector('.tiempo-espera');
+            
+            tiempoElem.textContent = `${minutos} min`;
+            
+            if(minutos >= 5 && !item.classList.contains('pedido-urgente')) {
+                item.classList.add('pedido-urgente');
+                if(sonidoActivo) alertSound.play();
+            }
+            
+            if(!item.classList.contains('pedido-urgente')) {
+                total += minutos;
+                count++;
+            }
+        });
+        
+        if(count > 0) {
+            document.getElementById('tiempo-promedio').textContent = 
+                Math.round(total / count) + ' min';
+        }
+    }
+
+    function toggleSound() {
+        sonidoActivo = !sonidoActivo;
+        document.querySelector('.fa-volume').className = 
+            sonidoActivo ? 'fas fa-volume-up' : 'fas fa-volume-mute';
+    }
+
+    async function despacharPedido(pedidoId) {
+        if(!confirm('¿Marcar este pedido como despachado?')) return;
+        
+        try {
+            const response = await fetch(`/despachar_pedido/${pedidoId}`, {method: 'DELETE'});
+            const data = await response.json();
+            
+            if(data.success) {
+                const pedidoElement = document.querySelector(`[data-pedido-id="${pedidoId}"]`);
+                const mesa = pedidoElement.dataset.mesa;
+                
+                // Animación del pedido
+                pedidoElement.classList.add('pedido-despachado');
+                
+                // Notificación y sonido
+                alertSound.play();
+                mostrarNotificacion(`Pedido para Mesa ${mesa} listo!`);
+                
+                // Actualizar lista después de animación
+                setTimeout(() => pedidoElement.remove(), 2000);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error al despachar el pedido');
+        }
+    }
+
+    function mostrarNotificacion(mensaje) {
+        const notificacion = document.createElement('div');
+        notificacion.className = 'alert alert-success position-fixed top-0 end-0 m-3';
+        notificacion.style.zIndex = '1000';
+        notificacion.innerHTML = `<i class="fas fa-check-circle"></i> ${mensaje}`;
+        
+        document.body.appendChild(notificacion);
+        setTimeout(() => notificacion.remove(), 3000);
+    }
+
+    async function verDetalles(pedidoId) {
+        try {
+            const response = await fetch(`/detalles_pedido/${pedidoId}`);
+            const detalles = await response.text();
+            document.getElementById('detalles-pedido').innerHTML = detalles;
+            new bootstrap.Modal(document.getElementById('detallesModal')).show();
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+
+    function initTooltips() {
+        const tooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        tooltips.forEach(t => new bootstrap.Tooltip(t));
+    }
+
+    setInterval(() => {
+        actualizarTiempos();
         fetch("/cocina")
             .then(response => response.text())
             .then(data => {
-                // Extraer solo la lista de pedidos del HTML recibido
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(data, "text/html");
-                const nuevaLista = doc.getElementById("lista-pedidos").innerHTML;
-
-                // Actualizar la lista de pedidos en la página
-                document.getElementById("lista-pedidos").innerHTML = nuevaLista;
-            })
-            .catch(error => console.error("Error al actualizar pedidos:", error));
-    }
-
-    // Actualizar la lista cada 20ms
-    setInterval(actualizarPedidos, 20);
+                document.getElementById("lista-pedidos").innerHTML = 
+                    doc.getElementById("lista-pedidos").innerHTML;
+                initTooltips();
+            });
+    }, 100);
 </script>
 {% endblock %}

@@ -17,3 +17,6 @@ body {
     font-weight: 500;
     margin-bottom: 0.5rem;
 }
+
+.pedido-comida { border-color: #4CAF50; }
+.pedido-bebida { border-color: #2196F3; }
