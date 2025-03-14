@@ -2,8 +2,9 @@
 
 {% block content %}
 <div class="container">
-    <h2 class="mb-4"><i class="fas fa-cash-register me-2"></i>Registrar Consumo - Mesa {{ mesa }}</h2>
-
+    
+        <h2 class="mb-4"><i class="fas fa-cash-register me-2"></i>Registrar Consumo - Mesa {{ mesa }}</h2>
+    
     <!-- Mostrar mensajes flash -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -18,7 +19,9 @@
     <!-- Formulario para registrar consumo -->
     <form method="POST" action="{{ url_for('registrar_consumo', mesa=mesa) }}">
         <div class="mb-3">
-            <label for="producto" class="form-label">Producto</label>
+            
+                <label for="producto" class="form-label">Producto</label>
+           
             <select class="form-select" id="producto" name="producto" required>
                 {% for producto in productos %}
                 <option value="{{ loop.index0 }}">{{ producto.Nombre }} - ${{ producto.Precio }}</option>
@@ -26,7 +29,9 @@
             </select>
         </div>
         <div class="mb-3">
+            
             <label for="cantidad" class="form-label">Cantidad</label>
+            
             <input type="number" class="form-control" id="cantidad" name="cantidad" min="1" required>
         </div>
         <button type="submit" class="btn btn-primary">
@@ -36,7 +41,8 @@
 
     <!-- Lista de consumos registrados -->
     <div class="mt-4">
-        <h4>Consumos Registrados</h4>
+        
+            <h4>Consumos Registrados</h4>
         <table class="table table-striped">
             <thead>
                 <tr>
@@ -133,4 +139,6 @@
         }
     };
 </script>
+
+
 {% endblock %}

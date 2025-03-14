@@ -4,35 +4,35 @@
 <div class="container text-center">
     <div class="mt-5">
         <h2 class="mb-4">Sistema Administrativo</h2>
-        <div class="d-flex justify-content-center">
-            <a href="{{ url_for('login_admin') }}" class="btn btn-danger btn-option">
-                <i class="fas fa-user-shield fa-3x mb-3"></i><br>
-                Administrador
-            </a>
-            
-            <a href="{{ url_for('login') }}" class="btn btn-success btn-option">
-                <i class="fas fa-cash-register fa-3x mb-3"></i><br>
-                Caja
-            </a>
+            <div class="d-flex justify-content-center">
+                <a href="{{ url_for('login_admin') }}" class="btn btn-danger btn-option">
+                    <i class="fas fa-user-shield fa-3x mb-3"></i><br>
+                    Administrador
+                </a>
+                
+                <a href="{{ url_for('login') }}" class="btn btn-success btn-option">
+                    <i class="fas fa-cash-register fa-3x mb-3"></i><br>
+                    Caja
+                </a>
+            </div>
         </div>
     </div>
-</div>
 
-<style>
-    .btn-option {
-        width: 200px;
-        height: 200px;
-        margin: 15px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        transition: transform 0.2s;
-    }
-    .btn-option:hover {
-        transform: scale(1.05);
-
-    }
-    
-</style>
-{% endblock %}
+    <style>
+     
+        .btn-option {
+            width: 200px;
+            height: 200px;
+            margin: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+        }
+        
+        .btn-option:hover {
+            transform: scale(1.05);
+        }
+    </style>
+    {% endblock %}
